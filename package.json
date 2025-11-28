@@ -45,7 +45,13 @@
   },
   "homepage": "https://github.com/krzmknt/graphts#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/domain/index.d.ts",
+      "import": "./dist/domain/index.js"
+    }
   },
   "dependencies": {
     "typescript": "^5.7.2"
