@@ -308,7 +308,7 @@ export class TypeScriptParserAdapter implements IParser {
     );
 
     // Check if it's a React component (extends Component or has render method)
-    const isComponent = this.isReactClassComponent(node);
+    const isComponent = this.isReactClassComponent(node, sourceFile);
 
     return createNode({
       id: `${moduleId}#${name}`,
@@ -548,13 +548,16 @@ export class TypeScriptParserAdapter implements IParser {
   /**
    * Check if a class is a React class component
    */
-  private isReactClassComponent(node: ts.ClassDeclaration): boolean {
+  private isReactClassComponent(
+    node: ts.ClassDeclaration,
+    sourceFile: ts.SourceFile
+  ): boolean {
     // Check if extends React.Component or Component
     if (node.heritageClauses) {
       for (const clause of node.heritageClauses) {
         if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
           for (const type of clause.types) {
-            const text = type.expression.getText();
+            const text = type.expression.getText(sourceFile);
             if (
               text === 'Component' ||
               text === 'PureComponent' ||
