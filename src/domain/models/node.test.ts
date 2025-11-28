@@ -73,10 +73,13 @@ describe('NODE_TYPES', () => {
     expect(NODE_TYPES).toContain('component');
     expect(NODE_TYPES).toContain('type');
     expect(NODE_TYPES).toContain('interface');
+    expect(NODE_TYPES).toContain('enum');
+    expect(NODE_TYPES).toContain('method');
+    expect(NODE_TYPES).toContain('field');
   });
 
-  it('should have exactly 7 node types', () => {
-    expect(NODE_TYPES).toHaveLength(7);
+  it('should have exactly 10 node types', () => {
+    expect(NODE_TYPES).toHaveLength(10);
   });
 
   it('should be a readonly array', () => {
@@ -90,6 +93,9 @@ describe('NODE_TYPES', () => {
       'component',
       'type',
       'interface',
+      'enum',
+      'method',
+      'field',
     ]);
   });
 });

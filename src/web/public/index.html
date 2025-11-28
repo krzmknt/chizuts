@@ -215,6 +215,21 @@
         color: #fff;
       }
 
+      .tree-symbol-enum .symbol-icon {
+        background: #8e44ad;
+        color: #fff;
+      }
+
+      .tree-symbol-method .symbol-icon {
+        background: #27ae60;
+        color: #fff;
+      }
+
+      .tree-symbol-field .symbol-icon {
+        background: #d35400;
+        color: #fff;
+      }
+
       .tree-children {
         display: none;
       }
@@ -343,6 +358,28 @@
         font-size: 12px;
       }
 
+      .legend-item.clickable {
+        cursor: pointer;
+        padding: 4px 8px;
+        margin: 4px -8px;
+        border-radius: 4px;
+        transition:
+          background 0.15s,
+          opacity 0.15s;
+      }
+
+      .legend-item.clickable:hover {
+        background: #0f3460;
+      }
+
+      .legend-item.clickable.inactive {
+        opacity: 0.4;
+      }
+
+      .legend-item.clickable.inactive .legend-color {
+        background: #555 !important;
+      }
+
       .legend-color {
         width: 12px;
         height: 12px;
@@ -411,62 +448,47 @@
         <p style="color: #666">Click a node to see details</p>
       </div>
 
-      <div id="filter-section">
-        <h2>Filter by Type</h2>
-        <label
-          ><input type="checkbox" data-type="module" checked /> Modules</label
-        >
-        <label
-          ><input type="checkbox" data-type="function" checked />
-          Functions</label
-        >
-        <label
-          ><input type="checkbox" data-type="class" checked /> Classes</label
-        >
-        <label
-          ><input type="checkbox" data-type="variable" checked />
-          Variables</label
-        >
-        <label
-          ><input type="checkbox" data-type="component" checked />
-          Components</label
-        >
-        <label
-          ><input type="checkbox" data-type="interface" checked />
-          Interfaces</label
-        >
-        <label><input type="checkbox" data-type="type" checked /> Types</label>
-      </div>
-
       <div id="legend">
         <h2>Nodes</h2>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="module">
           <div class="legend-color" style="background: #3498db"></div>
           Module
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="function">
           <div class="legend-color" style="background: #2ecc71"></div>
           Function
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="class">
           <div class="legend-color" style="background: #9b59b6"></div>
           Class
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="variable">
           <div class="legend-color" style="background: #f39c12"></div>
           Variable
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="component">
           <div class="legend-color" style="background: #e74c3c"></div>
           Component
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="interface">
           <div class="legend-color" style="background: #1abc9c"></div>
           Interface
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="type">
           <div class="legend-color" style="background: #e67e22"></div>
           Type
+        </div>
+        <div class="legend-item clickable" data-type="enum">
+          <div class="legend-color" style="background: #8e44ad"></div>
+          Enum
+        </div>
+        <div class="legend-item clickable" data-type="method">
+          <div class="legend-color" style="background: #27ae60"></div>
+          Method
+        </div>
+        <div class="legend-item clickable" data-type="field">
+          <div class="legend-color" style="background: #d35400"></div>
+          Field
         </div>
       </div>
 
@@ -477,8 +499,8 @@
           import
         </div>
         <div class="legend-item">
-          <div class="legend-line" style="background: #2ecc71"></div>
-          export
+          <div class="legend-line" style="background: #7f8c8d"></div>
+          defines
         </div>
         <div class="legend-item">
           <div class="legend-line" style="background: #e74c3c"></div>
@@ -493,7 +515,7 @@
           extends
         </div>
         <div class="legend-item">
-          <div class="legend-line" style="background: #1abc9c"></div>
+          <div class="legend-line" style="background: #e91e63"></div>
           implements
         </div>
       </div>
@@ -510,15 +532,18 @@
         component: '#e74c3c',
         interface: '#1abc9c',
         type: '#e67e22',
+        enum: '#8e44ad',
+        method: '#27ae60',
+        field: '#d35400',
       };
 
       const EDGE_COLORS = {
         import: '#3498db',
-        export: '#2ecc71',
+        export: '#7f8c8d', // "defines" - module contains this symbol
         call: '#e74c3c',
         reference: '#f39c12',
         extends: '#9b59b6',
-        implements: '#1abc9c',
+        implements: '#e91e63', // pink - distinct from green
       };
 
       let cy;
@@ -530,7 +555,13 @@
 
         // Get modules and their children
         const modules = nodes.filter((n) => n.type === 'module');
-        const symbols = nodes.filter((n) => n.type !== 'module');
+        const topLevelSymbols = nodes.filter(
+          (n) =>
+            n.type !== 'module' && n.type !== 'method' && n.type !== 'field'
+        );
+        const memberSymbols = nodes.filter(
+          (n) => n.type === 'method' || n.type === 'field'
+        );
 
         // Build module tree
         for (const node of modules) {
@@ -555,8 +586,8 @@
           }
         }
 
-        // Add symbols to their parent modules
-        for (const symbol of symbols) {
+        // Add top-level symbols to their parent modules
+        for (const symbol of topLevelSymbols) {
           // Find parent module by matching file path
           const parentModule = modules.find((m) =>
             symbol.id.startsWith(m.id + '#')
@@ -576,7 +607,46 @@
                 id: symbol.id,
                 label: symbol.label,
                 type: symbol.type,
+                __members: [], // For classes to hold methods/fields
               });
+            }
+          }
+        }
+
+        // Add methods/fields to their parent class
+        for (const member of memberSymbols) {
+          // Member ID format: module#ClassName.memberName
+          // Find parent class by checking if class ID is prefix of member ID
+          const parentClass = topLevelSymbols.find(
+            (s) => s.type === 'class' && member.id.startsWith(s.id + '.')
+          );
+          if (parentClass) {
+            // Find the class in the tree and add the member
+            const parentModule = modules.find((m) =>
+              parentClass.id.startsWith(m.id + '#')
+            );
+            if (parentModule) {
+              const parts = parentModule.label.split('/').filter(Boolean);
+              let current = tree;
+
+              for (const part of parts) {
+                if (current[part]) {
+                  current = current[part];
+                }
+              }
+
+              if (current.__children) {
+                const classEntry = current.__children.find(
+                  (c) => c.id === parentClass.id
+                );
+                if (classEntry && classEntry.__members) {
+                  classEntry.__members.push({
+                    id: member.id,
+                    label: member.label,
+                    type: member.type,
+                  });
+                }
+              }
             }
           }
         }
@@ -586,12 +656,16 @@
 
       // Symbol type icons
       const SYMBOL_ICONS = {
+        module: 'M',
         function: 'ƒ',
         class: 'C',
         variable: 'V',
         component: '⚛',
         interface: 'I',
         type: 'T',
+        enum: 'E',
+        method: 'm',
+        field: 'f',
       };
 
       // Render the file tree
@@ -632,11 +706,45 @@
                 symbolItem.style.paddingLeft = `${indentPadding + 15}px`;
                 symbolItem.dataset.nodeId = symbol.id;
                 symbolItem.innerHTML = `<span class="symbol-icon">${SYMBOL_ICONS[symbol.type] || '•'}</span> ${symbol.label}`;
-                symbolItem.addEventListener('click', (e) => {
-                  e.stopPropagation();
-                  focusNode(symbol.id);
-                });
-                fileChildren.appendChild(symbolItem);
+
+                // If symbol has members (class with methods/fields), make it expandable
+                if (symbol.__members && symbol.__members.length > 0) {
+                  const memberContainer = document.createElement('div');
+                  memberContainer.className = 'tree-children';
+
+                  const sortedMembers = symbol.__members.sort((a, b) =>
+                    a.label.localeCompare(b.label)
+                  );
+
+                  for (const member of sortedMembers) {
+                    const memberItem = document.createElement('div');
+                    memberItem.className = `tree-item tree-symbol tree-symbol-${member.type}`;
+                    memberItem.style.paddingLeft = `${indentPadding + 30}px`;
+                    memberItem.dataset.nodeId = member.id;
+                    memberItem.innerHTML = `<span class="symbol-icon">${SYMBOL_ICONS[member.type] || '•'}</span> ${member.label}`;
+                    memberItem.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      focusNode(member.id);
+                    });
+                    memberContainer.appendChild(memberItem);
+                  }
+
+                  symbolItem.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    symbolItem.classList.toggle('open');
+                    memberContainer.classList.toggle('open');
+                    focusNode(symbol.id);
+                  });
+
+                  fileChildren.appendChild(symbolItem);
+                  fileChildren.appendChild(memberContainer);
+                } else {
+                  symbolItem.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    focusNode(symbol.id);
+                  });
+                  fileChildren.appendChild(symbolItem);
+                }
               }
             }
 
@@ -798,6 +906,7 @@
               id: node.id,
               label: node.label,
               type: node.type,
+              icon: SYMBOL_ICONS[node.type] || '•',
               filePath: node.filePath,
               line: node.line,
               column: node.column,
@@ -837,12 +946,23 @@
                   NODE_COLORS[ele.data('type')] || '#888',
                 color: '#fff',
                 'text-valign': 'bottom',
+                'text-halign': 'center',
                 'text-margin-y': 5,
                 'font-size': 10,
-                width: (ele) => (ele.data('type') === 'module' ? 30 : 20),
-                height: (ele) => (ele.data('type') === 'module' ? 30 : 20),
+                width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
                 'border-width': 2,
                 'border-color': '#1a1a2e',
+                'text-outline-width': 1,
+                'text-outline-color': '#1a1a2e',
+                // Icon inside node using background
+                'background-image': (ele) => {
+                  const icon = ele.data('icon') || '•';
+                  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${icon}</text></svg>`;
+                  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+                },
+                'background-fit': 'contain',
+                'background-clip': 'none',
               },
             },
             {
@@ -909,13 +1029,53 @@
 
       function showNodeInfo(data) {
         const info = document.getElementById('node-info');
+        const metadata = data.metadata || {};
+
+        // Build TSDoc section
+        let tsdocHtml = '';
+        if (metadata.tsdoc) {
+          tsdocHtml = `
+            <div style="margin-top: 15px; padding: 10px; background: #0f3460; border-radius: 4px;">
+              <div style="font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase;">Documentation</div>
+              <div style="font-size: 12px; color: #ccc; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(metadata.tsdoc)}</div>
+            </div>
+          `;
+        }
+
+        // Build methods section
+        let methodsHtml = '';
+        if (metadata.methods && metadata.methods.length > 0) {
+          const methodsList = metadata.methods
+            .map((m) => {
+              const methodDoc = m.tsdoc
+                ? `<div style="font-size: 11px; color: #888; margin-top: 3px; margin-left: 20px;">${escapeHtml(m.tsdoc.split('\n')[0])}</div>`
+                : '';
+              return `<div style="margin: 6px 0;"><span style="color: #2ecc71; font-family: monospace;">ƒ</span> <span style="color: #eee;">${escapeHtml(m.name)}</span>${methodDoc}</div>`;
+            })
+            .join('');
+
+          methodsHtml = `
+            <div style="margin-top: 15px; padding: 10px; background: #0f3460; border-radius: 4px;">
+              <div style="font-size: 11px; color: #888; margin-bottom: 8px; text-transform: uppercase;">Public Methods</div>
+              ${methodsList}
+            </div>
+          `;
+        }
+
         info.innerHTML = `
-        <div class="label">${data.label}</div>
-        <div class="type ${data.type}">${data.type}</div>
-        <div class="path">${data.filePath}</div>
-        <div class="location">Line ${data.line}, Column ${data.column}</div>
-        ${data.metadata ? `<pre style="margin-top: 10px; font-size: 11px; color: #888;">${JSON.stringify(data.metadata, null, 2)}</pre>` : ''}
-      `;
+          <div class="label">${escapeHtml(data.label)}</div>
+          <div class="type ${data.type}">${data.type}</div>
+          <div class="path">${escapeHtml(data.filePath)}</div>
+          <div class="location">Line ${data.line}, Column ${data.column}</div>
+          ${tsdocHtml}
+          ${methodsHtml}
+        `;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
       }
 
       function setupControls() {
@@ -951,20 +1111,23 @@
           link.click();
         });
 
-        // Type filters
+        // Type filters via clickable legend items
         document
-          .querySelectorAll('#filter-section input[type="checkbox"]')
-          .forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-              const type = checkbox.dataset.type;
-              const visible = checkbox.checked;
+          .querySelectorAll('#legend .legend-item.clickable')
+          .forEach((item) => {
+            item.addEventListener('click', () => {
+              const type = item.dataset.type;
+              const isActive = !item.classList.contains('inactive');
+
+              // Toggle active state
+              item.classList.toggle('inactive');
 
               cy.nodes().forEach((node) => {
                 if (node.data('type') === type) {
-                  if (visible) {
-                    node.removeClass('hidden');
-                  } else {
+                  if (isActive) {
                     node.addClass('hidden');
+                  } else {
+                    node.removeClass('hidden');
                   }
                 }
               });
@@ -999,6 +1162,7 @@
                     id: node.id,
                     label: node.label,
                     type: node.type,
+                    icon: SYMBOL_ICONS[node.type] || '•',
                     filePath: node.filePath,
                     line: node.line,
                     column: node.column,

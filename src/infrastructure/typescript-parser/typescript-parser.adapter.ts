@@ -77,6 +77,9 @@ export class TypeScriptParserAdapter implements IParser {
       })
     );
 
+    // Build import map: symbol name -> source module ID
+    const importMap = this.buildImportMap(sourceFile, filePath, rootDir);
+
     // Visit all nodes in the AST
     const visit = (node: ts.Node): void => {
       // Import declarations
@@ -128,7 +131,31 @@ export class TypeScriptParserAdapter implements IParser {
           );
 
           // Process heritage clauses (extends, implements)
-          this.processHeritageClause(node, classNode.id, edges);
+          this.processHeritageClause(
+            node,
+            classNode.id,
+            moduleId,
+            importMap,
+            edges
+          );
+
+          // Process class members (methods and fields)
+          const memberNodes = this.processClassMembers(
+            node,
+            classNode.id,
+            filePath,
+            sourceFile
+          );
+          for (const memberNode of memberNodes) {
+            nodes.push(memberNode);
+            edges.push(
+              createEdge({
+                source: classNode.id,
+                target: memberNode.id,
+                type: 'export', // class "defines" this member
+              })
+            );
+          }
         }
       }
 
@@ -188,6 +215,26 @@ export class TypeScriptParserAdapter implements IParser {
         );
       }
 
+      // Enum declarations
+      if (ts.isEnumDeclaration(node)) {
+        const enumNode = this.processEnumDeclaration(
+          node,
+          moduleId,
+          filePath,
+          sourceFile
+        );
+        if (enumNode) {
+          nodes.push(enumNode);
+          edges.push(
+            createEdge({
+              source: moduleId,
+              target: enumNode.id,
+              type: 'export',
+            })
+          );
+        }
+      }
+
       ts.forEachChild(node, visit);
     };
 
@@ -199,6 +246,58 @@ export class TypeScriptParserAdapter implements IParser {
   /**
    * Process import declaration
    */
+  /**
+   * Build a map of imported symbol names to their source module IDs
+   */
+  private buildImportMap(
+    sourceFile: ts.SourceFile,
+    filePath: string,
+    rootDir: string
+  ): Map<string, string> {
+    const importMap = new Map<string, string>();
+
+    const visit = (node: ts.Node): void => {
+      if (ts.isImportDeclaration(node)) {
+        const moduleSpecifier = node.moduleSpecifier;
+        if (!ts.isStringLiteral(moduleSpecifier)) {
+          return;
+        }
+
+        const importPath = moduleSpecifier.text;
+        const resolvedPath = this.resolveImportPath(
+          importPath,
+          filePath,
+          rootDir
+        );
+        const sourceModuleId = this.createModuleId(resolvedPath);
+
+        // Get imported bindings
+        const importClause = node.importClause;
+        if (importClause) {
+          // Named imports: import { Foo, Bar } from '...'
+          if (
+            importClause.namedBindings &&
+            ts.isNamedImports(importClause.namedBindings)
+          ) {
+            for (const element of importClause.namedBindings.elements) {
+              const localName = element.name.text;
+              const originalName = element.propertyName?.text || localName;
+              importMap.set(localName, `${sourceModuleId}#${originalName}`);
+            }
+          }
+          // Default import: import Foo from '...'
+          if (importClause.name) {
+            importMap.set(importClause.name.text, `${sourceModuleId}#default`);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+    return importMap;
+  }
+
   private processImport(
     node: ts.ImportDeclaration,
     moduleId: string,
@@ -215,14 +314,77 @@ export class TypeScriptParserAdapter implements IParser {
     const resolvedPath = this.resolveImportPath(importPath, filePath, rootDir);
     const targetModuleId = this.createModuleId(resolvedPath);
 
-    edges.push(
-      createEdge({
-        source: moduleId,
-        target: targetModuleId,
-        type: 'import',
-        metadata: { importPath },
-      })
-    );
+    // Get imported bindings
+    const importClause = node.importClause;
+    const importedSymbols: string[] = [];
+
+    if (importClause) {
+      // Named imports: import { Foo, Bar } from '...'
+      if (
+        importClause.namedBindings &&
+        ts.isNamedImports(importClause.namedBindings)
+      ) {
+        for (const element of importClause.namedBindings.elements) {
+          const originalName = element.propertyName?.text || element.name.text;
+          importedSymbols.push(originalName);
+
+          // Create edge to the specific imported symbol
+          edges.push(
+            createEdge({
+              source: moduleId,
+              target: `${targetModuleId}#${originalName}`,
+              type: 'import',
+              metadata: { importPath, symbol: originalName },
+            })
+          );
+        }
+      }
+
+      // Namespace import: import * as foo from '...'
+      if (
+        importClause.namedBindings &&
+        ts.isNamespaceImport(importClause.namedBindings)
+      ) {
+        // For namespace imports, just create module-level edge
+        edges.push(
+          createEdge({
+            source: moduleId,
+            target: targetModuleId,
+            type: 'import',
+            metadata: {
+              importPath,
+              namespace: importClause.namedBindings.name.text,
+            },
+          })
+        );
+        return;
+      }
+
+      // Default import: import Foo from '...'
+      if (importClause.name) {
+        importedSymbols.push('default');
+        edges.push(
+          createEdge({
+            source: moduleId,
+            target: `${targetModuleId}#default`,
+            type: 'import',
+            metadata: { importPath, symbol: 'default' },
+          })
+        );
+      }
+    }
+
+    // If no specific symbols imported (side-effect import), create module-level edge
+    if (importedSymbols.length === 0) {
+      edges.push(
+        createEdge({
+          source: moduleId,
+          target: targetModuleId,
+          type: 'import',
+          metadata: { importPath },
+        })
+      );
+    }
   }
 
   /**
@@ -275,6 +437,9 @@ export class TypeScriptParserAdapter implements IParser {
     // Check if it's a React component (returns JSX)
     const isComponent = this.isReactComponent(node);
 
+    // Extract TSDoc comment
+    const tsdoc = this.extractTSDoc(node, sourceFile);
+
     return createNode({
       id: `${moduleId}#${name}`,
       label: name,
@@ -285,6 +450,7 @@ export class TypeScriptParserAdapter implements IParser {
       metadata: {
         exported: this.hasExportModifier(node),
         async: this.hasAsyncModifier(node),
+        ...(tsdoc && { tsdoc }),
       },
     });
   }
@@ -310,6 +476,12 @@ export class TypeScriptParserAdapter implements IParser {
     // Check if it's a React component (extends Component or has render method)
     const isComponent = this.isReactClassComponent(node, sourceFile);
 
+    // Extract TSDoc comment
+    const tsdoc = this.extractTSDoc(node, sourceFile);
+
+    // Extract public methods
+    const methods = this.extractPublicMethods(node, sourceFile);
+
     return createNode({
       id: `${moduleId}#${name}`,
       label: name,
@@ -319,6 +491,8 @@ export class TypeScriptParserAdapter implements IParser {
       column: character + 1,
       metadata: {
         exported: this.hasExportModifier(node),
+        ...(tsdoc && { tsdoc }),
+        ...(methods.length > 0 && { methods }),
       },
     });
   }
@@ -334,6 +508,11 @@ export class TypeScriptParserAdapter implements IParser {
   ): Node[] {
     const nodes: Node[] = [];
     const isExported = this.hasExportModifier(node);
+
+    // Only include exported variables (top-level API)
+    if (!isExported) {
+      return nodes;
+    }
 
     for (const declaration of node.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name)) {
@@ -357,6 +536,9 @@ export class TypeScriptParserAdapter implements IParser {
           : 'function';
       }
 
+      // Extract TSDoc comment
+      const tsdoc = this.extractTSDoc(node, sourceFile);
+
       nodes.push(
         createNode({
           id: `${moduleId}#${name}`,
@@ -365,7 +547,7 @@ export class TypeScriptParserAdapter implements IParser {
           filePath,
           line: line + 1,
           column: character + 1,
-          metadata: { exported: isExported },
+          metadata: { exported: isExported, ...(tsdoc && { tsdoc }) },
         })
       );
     }
@@ -387,6 +569,9 @@ export class TypeScriptParserAdapter implements IParser {
       node.getStart(sourceFile)
     );
 
+    // Extract TSDoc comment
+    const tsdoc = this.extractTSDoc(node, sourceFile);
+
     return createNode({
       id: `${moduleId}#${name}`,
       label: name,
@@ -396,6 +581,7 @@ export class TypeScriptParserAdapter implements IParser {
       column: character + 1,
       metadata: {
         exported: this.hasExportModifier(node),
+        ...(tsdoc && { tsdoc }),
       },
     });
   }
@@ -414,6 +600,9 @@ export class TypeScriptParserAdapter implements IParser {
       node.getStart(sourceFile)
     );
 
+    // Extract TSDoc comment
+    const tsdoc = this.extractTSDoc(node, sourceFile);
+
     return createNode({
       id: `${moduleId}#${name}`,
       label: name,
@@ -423,6 +612,60 @@ export class TypeScriptParserAdapter implements IParser {
       column: character + 1,
       metadata: {
         exported: this.hasExportModifier(node),
+        ...(tsdoc && { tsdoc }),
+      },
+    });
+  }
+
+  /**
+   * Process enum declaration
+   */
+  private processEnumDeclaration(
+    node: ts.EnumDeclaration,
+    moduleId: string,
+    filePath: string,
+    sourceFile: ts.SourceFile
+  ): Node | null {
+    const isExported = this.hasExportModifier(node);
+
+    // Only include exported enums (top-level API)
+    if (!isExported) {
+      return null;
+    }
+
+    const name = node.name.text;
+    const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+      node.getStart(sourceFile)
+    );
+
+    // Extract TSDoc comment
+    const tsdoc = this.extractTSDoc(node, sourceFile);
+
+    // Extract enum members
+    const members = node.members
+      .map((member) => {
+        if (ts.isIdentifier(member.name)) {
+          return member.name.text;
+        }
+        if (ts.isStringLiteral(member.name)) {
+          return member.name.text;
+        }
+        // For computed property names, get the text from source
+        return member.name.getText(sourceFile);
+      })
+      .filter((m): m is string => typeof m === 'string');
+
+    return createNode({
+      id: `${moduleId}#${name}`,
+      label: name,
+      type: 'enum',
+      filePath,
+      line: line + 1,
+      column: character + 1,
+      metadata: {
+        exported: isExported,
+        ...(tsdoc && { tsdoc }),
+        ...(members.length > 0 && { members }),
       },
     });
   }
@@ -433,6 +676,8 @@ export class TypeScriptParserAdapter implements IParser {
   private processHeritageClause(
     node: ts.ClassDeclaration,
     classId: string,
+    moduleId: string,
+    importMap: Map<string, string>,
     edges: Edge[]
   ): void {
     if (!node.heritageClauses) {
@@ -448,10 +693,15 @@ export class TypeScriptParserAdapter implements IParser {
       for (const type of clause.types) {
         const expression = type.expression;
         if (ts.isIdentifier(expression)) {
+          const symbolName = expression.text;
+          // Try to resolve the symbol from imports, otherwise assume same module
+          const targetId =
+            importMap.get(symbolName) || `${moduleId}#${symbolName}`;
+
           edges.push(
             createEdge({
               source: classId,
-              target: expression.text,
+              target: targetId,
               type: edgeType,
             })
           );
@@ -583,5 +833,157 @@ export class TypeScriptParserAdapter implements IParser {
     }
 
     return false;
+  }
+
+  /**
+   * Extract TSDoc/JSDoc comment from a node
+   */
+  private extractTSDoc(
+    node: ts.Node,
+    sourceFile: ts.SourceFile
+  ): string | undefined {
+    const text = sourceFile.getFullText();
+    const commentRanges = ts.getLeadingCommentRanges(text, node.getFullStart());
+
+    if (!commentRanges || commentRanges.length === 0) {
+      return undefined;
+    }
+
+    // Get the last comment before the node (closest to the declaration)
+    const lastComment = commentRanges[commentRanges.length - 1];
+    if (!lastComment) {
+      return undefined;
+    }
+
+    const commentText = text.slice(lastComment.pos, lastComment.end);
+
+    // Check if it's a JSDoc/TSDoc comment (starts with /**)
+    if (commentText.startsWith('/**')) {
+      // Clean up the comment - remove /** */ and leading * from each line
+      return commentText
+        .replace(/^\/\*\*\s*/, '')
+        .replace(/\s*\*\/$/, '')
+        .split('\n')
+        .map((line) => line.replace(/^\s*\*\s?/, ''))
+        .join('\n')
+        .trim();
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Extract public methods from a class declaration
+   */
+  private extractPublicMethods(
+    node: ts.ClassDeclaration,
+    sourceFile: ts.SourceFile
+  ): Array<{ name: string; tsdoc?: string }> {
+    const methods: Array<{ name: string; tsdoc?: string }> = [];
+
+    for (const member of node.members) {
+      // Only process method declarations
+      if (!ts.isMethodDeclaration(member) || !ts.isIdentifier(member.name)) {
+        continue;
+      }
+
+      // Skip private and protected methods
+      const modifiers = ts.canHaveModifiers(member)
+        ? ts.getModifiers(member)
+        : undefined;
+      const isPrivate = modifiers?.some(
+        (mod: ts.Modifier) => mod.kind === ts.SyntaxKind.PrivateKeyword
+      );
+      const isProtected = modifiers?.some(
+        (mod: ts.Modifier) => mod.kind === ts.SyntaxKind.ProtectedKeyword
+      );
+
+      if (isPrivate || isProtected) {
+        continue;
+      }
+
+      const name = member.name.text;
+      const tsdoc = this.extractTSDoc(member, sourceFile);
+      methods.push({ name, ...(tsdoc && { tsdoc }) });
+    }
+
+    return methods;
+  }
+
+  /**
+   * Process class members and create nodes for public methods and fields
+   */
+  private processClassMembers(
+    node: ts.ClassDeclaration,
+    classId: string,
+    filePath: string,
+    sourceFile: ts.SourceFile
+  ): Node[] {
+    const memberNodes: Node[] = [];
+
+    for (const member of node.members) {
+      // Check if member is public (not private or protected)
+      const modifiers = ts.canHaveModifiers(member)
+        ? ts.getModifiers(member)
+        : undefined;
+      const isPrivate = modifiers?.some(
+        (mod: ts.Modifier) => mod.kind === ts.SyntaxKind.PrivateKeyword
+      );
+      const isProtected = modifiers?.some(
+        (mod: ts.Modifier) => mod.kind === ts.SyntaxKind.ProtectedKeyword
+      );
+
+      if (isPrivate || isProtected) {
+        continue;
+      }
+
+      // Process methods
+      if (ts.isMethodDeclaration(member) && ts.isIdentifier(member.name)) {
+        const name = member.name.text;
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+          member.getStart(sourceFile)
+        );
+        const tsdoc = this.extractTSDoc(member, sourceFile);
+
+        memberNodes.push(
+          createNode({
+            id: `${classId}.${name}`,
+            label: name,
+            type: 'method',
+            filePath,
+            line: line + 1,
+            column: character + 1,
+            metadata: {
+              ...(tsdoc && { tsdoc }),
+            },
+          })
+        );
+      }
+
+      // Process property declarations (fields)
+      if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name)) {
+        const name = member.name.text;
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+          member.getStart(sourceFile)
+        );
+        const tsdoc = this.extractTSDoc(member, sourceFile);
+
+        memberNodes.push(
+          createNode({
+            id: `${classId}.${name}`,
+            label: name,
+            type: 'field',
+            filePath,
+            line: line + 1,
+            column: character + 1,
+            metadata: {
+              ...(tsdoc && { tsdoc }),
+            },
+          })
+        );
+      }
+    }
+
+    return memberNodes;
   }
 }
