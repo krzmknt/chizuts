@@ -13,11 +13,11 @@ export interface AnalyzeProjectOptions {
   /** Root directory to analyze */
   readonly rootDir: string;
   /** Path to tsconfig.json (defaults to rootDir/tsconfig.json) */
-  readonly tsconfigPath?: string;
+  readonly tsconfigPath?: string | undefined;
   /** Glob patterns to include */
-  readonly include?: readonly string[];
+  readonly include?: readonly string[] | undefined;
   /** Glob patterns to exclude */
-  readonly exclude?: readonly string[];
+  readonly exclude?: readonly string[] | undefined;
 }
 
 /**
