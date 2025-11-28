@@ -169,6 +169,52 @@
         font-size: 12px;
       }
 
+      .tree-symbol {
+        color: #ccc;
+      }
+
+      .symbol-icon {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+        text-align: center;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-right: 4px;
+      }
+
+      .tree-symbol-function .symbol-icon {
+        background: #2ecc71;
+        color: #fff;
+      }
+
+      .tree-symbol-class .symbol-icon {
+        background: #9b59b6;
+        color: #fff;
+      }
+
+      .tree-symbol-variable .symbol-icon {
+        background: #f39c12;
+        color: #fff;
+      }
+
+      .tree-symbol-component .symbol-icon {
+        background: #e74c3c;
+        color: #fff;
+      }
+
+      .tree-symbol-interface .symbol-icon {
+        background: #1abc9c;
+        color: #fff;
+      }
+
+      .tree-symbol-type .symbol-icon {
+        background: #e67e22;
+        color: #fff;
+      }
+
       .tree-children {
         display: none;
       }
@@ -303,6 +349,18 @@
         border-radius: 2px;
       }
 
+      .legend-line {
+        width: 20px;
+        height: 3px;
+        border-radius: 1px;
+      }
+
+      #edge-legend {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #0f3460;
+      }
+
       #loading {
         position: fixed;
         top: 50%;
@@ -381,7 +439,7 @@
       </div>
 
       <div id="legend">
-        <h2>Legend</h2>
+        <h2>Nodes</h2>
         <div class="legend-item">
           <div class="legend-color" style="background: #3498db"></div>
           Module
@@ -411,6 +469,34 @@
           Type
         </div>
       </div>
+
+      <div id="edge-legend">
+        <h2>Edges</h2>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #3498db"></div>
+          import
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #2ecc71"></div>
+          export
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #e74c3c"></div>
+          call
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #f39c12"></div>
+          reference
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #9b59b6"></div>
+          extends
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #1abc9c"></div>
+          implements
+        </div>
+      </div>
     </div>
 
     <div id="loading">Loading graph...</div>
@@ -438,15 +524,16 @@
       let cy;
       let graphNodes = [];
 
-      // Build directory tree from relative file paths
+      // Build directory tree from relative file paths with child symbols
       function buildFileTree(nodes) {
         const tree = {};
 
-        // Get unique file paths (modules only)
+        // Get modules and their children
         const modules = nodes.filter((n) => n.type === 'module');
+        const symbols = nodes.filter((n) => n.type !== 'module');
 
+        // Build module tree
         for (const node of modules) {
-          // Use label which contains the relative path
           const parts = node.label.split('/').filter(Boolean);
           let current = tree;
 
@@ -456,15 +543,56 @@
 
             if (!current[part]) {
               current[part] = isFile
-                ? { __isFile: true, __nodeId: node.id, __label: node.label }
+                ? {
+                    __isFile: true,
+                    __nodeId: node.id,
+                    __label: node.label,
+                    __children: [],
+                  }
                 : {};
             }
             current = current[part];
           }
         }
 
+        // Add symbols to their parent modules
+        for (const symbol of symbols) {
+          // Find parent module by matching file path
+          const parentModule = modules.find((m) =>
+            symbol.id.startsWith(m.id + '#')
+          );
+          if (parentModule) {
+            const parts = parentModule.label.split('/').filter(Boolean);
+            let current = tree;
+
+            for (const part of parts) {
+              if (current[part]) {
+                current = current[part];
+              }
+            }
+
+            if (current.__children) {
+              current.__children.push({
+                id: symbol.id,
+                label: symbol.label,
+                type: symbol.type,
+              });
+            }
+          }
+        }
+
         return tree;
       }
+
+      // Symbol type icons
+      const SYMBOL_ICONS = {
+        function: 'ƒ',
+        class: 'C',
+        variable: 'V',
+        component: '⚛',
+        interface: 'I',
+        type: 'T',
+      };
 
       // Render the file tree
       function renderFileTree(tree, container, depth = 0) {
@@ -483,13 +611,45 @@
           const indentPadding = 15 + depth * 15; // Base 15px + 15px per depth level
 
           if (isFile) {
-            const item = document.createElement('div');
-            item.className = 'tree-item tree-file';
-            item.style.paddingLeft = `${indentPadding}px`;
-            item.textContent = name;
-            item.dataset.nodeId = value.__nodeId;
-            item.addEventListener('click', () => focusNode(value.__nodeId));
-            container.appendChild(item);
+            const fileItem = document.createElement('div');
+            fileItem.className = 'tree-item tree-file';
+            fileItem.style.paddingLeft = `${indentPadding}px`;
+            fileItem.textContent = name;
+            fileItem.dataset.nodeId = value.__nodeId;
+
+            const fileChildren = document.createElement('div');
+            fileChildren.className = 'tree-children';
+
+            // Render symbol children
+            if (value.__children && value.__children.length > 0) {
+              const sortedSymbols = value.__children.sort((a, b) =>
+                a.label.localeCompare(b.label)
+              );
+
+              for (const symbol of sortedSymbols) {
+                const symbolItem = document.createElement('div');
+                symbolItem.className = `tree-item tree-symbol tree-symbol-${symbol.type}`;
+                symbolItem.style.paddingLeft = `${indentPadding + 15}px`;
+                symbolItem.dataset.nodeId = symbol.id;
+                symbolItem.innerHTML = `<span class="symbol-icon">${SYMBOL_ICONS[symbol.type] || '•'}</span> ${symbol.label}`;
+                symbolItem.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  focusNode(symbol.id);
+                });
+                fileChildren.appendChild(symbolItem);
+              }
+            }
+
+            fileItem.addEventListener('click', () => {
+              fileItem.classList.toggle('open');
+              fileChildren.classList.toggle('open');
+              focusNode(value.__nodeId);
+            });
+
+            container.appendChild(fileItem);
+            if (value.__children && value.__children.length > 0) {
+              container.appendChild(fileChildren);
+            }
           } else {
             const folder = document.createElement('div');
             folder.className = 'tree-item tree-folder';
@@ -576,14 +736,14 @@
             );
             if (treeItem) {
               treeItem.classList.add('match');
-              // Expand parent folders
+              // Expand parent folders and files
               let parent = treeItem.parentElement;
               while (parent) {
                 if (parent.classList.contains('tree-children')) {
                   parent.classList.add('open');
-                  const folder = parent.previousElementSibling;
-                  if (folder && folder.classList.contains('tree-folder')) {
-                    folder.classList.add('open');
+                  const prevSibling = parent.previousElementSibling;
+                  if (prevSibling) {
+                    prevSibling.classList.add('open');
                   }
                 }
                 parent = parent.parentElement;
