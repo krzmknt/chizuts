@@ -21,6 +21,7 @@ export interface CliOptions {
   include: string[];
   exclude: string[];
   tsconfigPath?: string | undefined;
+  watch: boolean;
   help: boolean;
   version: boolean;
 }
@@ -46,6 +47,7 @@ Options:
   -h, --help             Show this help message
   -v, --version          Show version number
   -p, --port <number>    Server port (default: 3000)
+  -w, --watch            Watch for file changes and auto-reload
   --include <pattern>    Glob patterns to include (can be specified multiple times)
   --exclude <pattern>    Glob patterns to exclude (can be specified multiple times)
   --tsconfig <path>      Path to tsconfig.json
@@ -54,6 +56,7 @@ Examples:
   graphts                        Analyze current directory
   graphts ./my-project           Analyze specific directory
   graphts -p 8080                Use custom port
+  graphts -w                     Watch mode with auto-reload
   graphts --exclude "**/*.test.ts"  Exclude test files
 `);
 }
@@ -68,6 +71,7 @@ export function parseArgs(args: string[], defaultRootDir?: string): CliOptions {
     port: 3000,
     include: [],
     exclude: [],
+    watch: false,
     help: false,
     version: false,
   };
@@ -85,6 +89,11 @@ export function parseArgs(args: string[], defaultRootDir?: string): CliOptions {
       case '-v':
       case '--version':
         options.version = true;
+        break;
+
+      case '-w':
+      case '--watch':
+        options.watch = true;
         break;
 
       case '-p':
@@ -184,22 +193,75 @@ async function main(): Promise<void> {
   const fileReader = new FileReaderAdapter();
   const analyzeProject = new AnalyzeProjectUseCase(parser, fileReader);
 
-  console.log(`Analyzing: ${options.rootDir}`);
-
-  // Execute use case
-  const graph = analyzeProject.execute({
+  const analyzeOptions = {
     rootDir: options.rootDir,
     include: options.include.length > 0 ? options.include : undefined,
     exclude: options.exclude.length > 0 ? options.exclude : undefined,
     tsconfigPath: options.tsconfigPath,
-  });
+  };
+
+  console.log(`Analyzing: ${options.rootDir}`);
+
+  // Execute use case
+  let graph = analyzeProject.execute(analyzeOptions);
 
   console.log(`Found ${graph.nodes.length} nodes`);
   console.log(`Found ${graph.edges.length} edges`);
   console.log(`Analyzed ${graph.metadata.fileCount} files`);
 
   // Start visualization server
-  await startServer({ graph, port: options.port });
+  const server = await startServer({
+    graph,
+    port: options.port,
+    watch: options.watch,
+  });
+
+  // Set up file watching if watch mode is enabled
+  if (options.watch) {
+    const { watch } = await import('node:fs');
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const reanalyze = (): void => {
+      console.log('\nFile change detected, re-analyzing...');
+      try {
+        graph = analyzeProject.execute(analyzeOptions);
+        server.updateGraph(graph);
+        console.log(
+          `Updated: ${graph.nodes.length} nodes, ${graph.edges.length} edges`
+        );
+      } catch (error) {
+        console.error('Error during re-analysis:', error);
+      }
+    };
+
+    // Watch the root directory recursively
+    const watcher = watch(
+      options.rootDir,
+      { recursive: true },
+      (eventType, filename) => {
+        // Only watch TypeScript files
+        if (
+          filename &&
+          (filename.endsWith('.ts') || filename.endsWith('.tsx')) &&
+          !filename.endsWith('.d.ts')
+        ) {
+          // Debounce to avoid multiple rapid re-analyses
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          debounceTimer = setTimeout(reanalyze, 300);
+        }
+      }
+    );
+
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\nShutting down...');
+      watcher.close();
+      void server.close().then(() => process.exit(0));
+    });
+  }
 }
 
 // Only run main when this file is the entry point (not when imported for testing)

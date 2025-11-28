@@ -13,6 +13,7 @@ describe('parseArgs', () => {
     expect(result.include).toEqual([]);
     expect(result.exclude).toEqual([]);
     expect(result.tsconfigPath).toBeUndefined();
+    expect(result.watch).toBe(false);
     expect(result.help).toBe(false);
     expect(result.version).toBe(false);
   });
@@ -38,6 +39,18 @@ describe('parseArgs', () => {
     it('should set version to true with -v', () => {
       const result = parseArgs(['-v'], defaultRootDir);
       expect(result.version).toBe(true);
+    });
+  });
+
+  describe('--watch / -w', () => {
+    it('should set watch to true with --watch', () => {
+      const result = parseArgs(['--watch'], defaultRootDir);
+      expect(result.watch).toBe(true);
+    });
+
+    it('should set watch to true with -w', () => {
+      const result = parseArgs(['-w'], defaultRootDir);
+      expect(result.watch).toBe(true);
     });
   });
 
@@ -208,6 +221,7 @@ describe('applyEnvOverrides', () => {
       port: 3000,
       include: [],
       exclude: [],
+      watch: false,
       help: false,
       version: false,
     };
@@ -223,6 +237,7 @@ describe('applyEnvOverrides', () => {
       port: 8080,
       include: [],
       exclude: [],
+      watch: false,
       help: false,
       version: false,
     };
@@ -238,6 +253,7 @@ describe('applyEnvOverrides', () => {
       port: 3000,
       include: [],
       exclude: [],
+      watch: false,
       help: false,
       version: false,
     };
@@ -254,6 +270,7 @@ describe('applyEnvOverrides', () => {
       include: ['src/**'],
       exclude: ['**/*.test.ts'],
       tsconfigPath: './tsconfig.json',
+      watch: false,
       help: false,
       version: false,
     };

@@ -505,7 +505,83 @@
           });
       }
 
-      init().catch(console.error);
+      // Connect to SSE for watch mode updates
+      function setupWatchMode() {
+        const eventSource = new EventSource('/api/events');
+
+        eventSource.addEventListener('connected', () => {
+          console.log('Watch mode connected');
+        });
+
+        eventSource.addEventListener('update', () => {
+          console.log('Graph updated, reloading...');
+          // Re-fetch and update the graph
+          fetch('/api/graph')
+            .then((res) => res.json())
+            .then((graph) => {
+              // Update stats
+              document.getElementById('stats').textContent =
+                `${graph.nodes.length} nodes, ${graph.edges.length} edges, ${graph.metadata.fileCount} files`;
+
+              // Rebuild elements
+              const elements = [];
+
+              for (const node of graph.nodes) {
+                elements.push({
+                  data: {
+                    id: node.id,
+                    label: node.label,
+                    type: node.type,
+                    filePath: node.filePath,
+                    line: node.line,
+                    column: node.column,
+                    metadata: node.metadata,
+                  },
+                });
+              }
+
+              for (const edge of graph.edges) {
+                const sourceExists = graph.nodes.some(
+                  (n) => n.id === edge.source
+                );
+                const targetExists = graph.nodes.some(
+                  (n) => n.id === edge.target
+                );
+
+                if (sourceExists && targetExists) {
+                  elements.push({
+                    data: {
+                      id: `${edge.source}->${edge.target}`,
+                      source: edge.source,
+                      target: edge.target,
+                      type: edge.type,
+                    },
+                  });
+                }
+              }
+
+              // Update cytoscape
+              cy.elements().remove();
+              cy.add(elements);
+              cy.layout({
+                name: document.getElementById('layout').value,
+                animate: false,
+              }).run();
+            })
+            .catch(console.error);
+        });
+
+        eventSource.onerror = () => {
+          console.log('Watch mode disconnected, will retry...');
+        };
+      }
+
+      init()
+        .then(() => {
+          // Try to connect to watch mode (will fail gracefully if not enabled)
+          setupWatchMode();
+        })
+        .catch(console.error);
     </script>
   </body>
 </html>
