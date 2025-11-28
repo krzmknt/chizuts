@@ -1,0 +1,61 @@
+{
+  "name": "graphts",
+  "version": "0.1.0",
+  "description": "A TypeScript codebase analyzer that visualizes dependencies between modules, functions, variables, and components as a graph",
+  "type": "module",
+  "main": "dist/domain/index.js",
+  "types": "dist/domain/index.d.ts",
+  "bin": {
+    "graphts": "dist/cli/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli/index.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "typescript",
+    "dependency",
+    "graph",
+    "visualization",
+    "analyzer",
+    "codebase",
+    "architecture"
+  ],
+  "author": "krzmknt",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krzmknt/graphts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/krzmknt/graphts/issues"
+  },
+  "homepage": "https://github.com/krzmknt/graphts#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.16.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.1",
+    "vitest": "^2.1.6"
+  }
+}
