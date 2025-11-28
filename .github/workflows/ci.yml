@@ -7,12 +7,13 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  build-and-test-node:
+    name: Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [20, 22, 24]
 
     steps:
       - name: Checkout repository
@@ -50,3 +51,29 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  build-and-test-bun:
+    name: Bun
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Build
+        run: bun run build
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Run tests
+        run: bun run test --run
