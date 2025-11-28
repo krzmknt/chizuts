@@ -78,10 +78,111 @@
         font-size: 13px;
       }
 
-      #cy {
+      #left-sidebar {
         position: fixed;
         top: 50px;
         left: 0;
+        width: 280px;
+        bottom: 0;
+        background: #16213e;
+        border-right: 1px solid #0f3460;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      #search-container {
+        padding: 15px;
+        border-bottom: 1px solid #0f3460;
+      }
+
+      #search-input {
+        width: 100%;
+        background: #0f3460;
+        color: #eee;
+        border: 1px solid #1a1a2e;
+        padding: 10px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      #search-input:focus {
+        border-color: #e94560;
+      }
+
+      #search-input::placeholder {
+        color: #666;
+      }
+
+      #search-results {
+        font-size: 12px;
+        color: #888;
+        margin-top: 8px;
+      }
+
+      #file-tree-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 0;
+      }
+
+      .tree-item {
+        padding: 6px 15px 6px 15px;
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s;
+      }
+
+      .tree-item:hover {
+        background: #0f3460;
+      }
+
+      .tree-item.selected {
+        background: #e94560;
+      }
+
+      .tree-item.match {
+        background: rgba(233, 69, 96, 0.3);
+      }
+
+      .tree-folder {
+        color: #888;
+        font-weight: 500;
+      }
+
+      .tree-folder::before {
+        content: '📁';
+        font-size: 12px;
+      }
+
+      .tree-folder.open::before {
+        content: '📂';
+      }
+
+      .tree-file::before {
+        content: '📄';
+        font-size: 12px;
+      }
+
+      .tree-children {
+        display: none;
+      }
+
+      .tree-children.open {
+        display: block;
+      }
+
+      /* Dynamic indentation - base padding + depth * 15px */
+
+      #cy {
+        position: fixed;
+        top: 50px;
+        left: 280px;
         right: 300px;
         bottom: 0;
       }
@@ -229,6 +330,21 @@
       </div>
     </div>
 
+    <div id="left-sidebar">
+      <div id="search-container">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search files..."
+          autocomplete="off"
+        />
+        <div id="search-results"></div>
+      </div>
+      <div id="file-tree-container">
+        <div id="file-tree"></div>
+      </div>
+    </div>
+
     <div id="cy"></div>
 
     <div id="sidebar">
@@ -320,15 +436,197 @@
       };
 
       let cy;
+      let graphNodes = [];
+
+      // Build directory tree from relative file paths
+      function buildFileTree(nodes) {
+        const tree = {};
+
+        // Get unique file paths (modules only)
+        const modules = nodes.filter((n) => n.type === 'module');
+
+        for (const node of modules) {
+          // Use label which contains the relative path
+          const parts = node.label.split('/').filter(Boolean);
+          let current = tree;
+
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            const isFile = i === parts.length - 1;
+
+            if (!current[part]) {
+              current[part] = isFile
+                ? { __isFile: true, __nodeId: node.id, __label: node.label }
+                : {};
+            }
+            current = current[part];
+          }
+        }
+
+        return tree;
+      }
+
+      // Render the file tree
+      function renderFileTree(tree, container, depth = 0) {
+        const entries = Object.entries(tree).sort(([a, aVal], [b, bVal]) => {
+          // Folders first, then files
+          const aIsFile = aVal.__isFile;
+          const bIsFile = bVal.__isFile;
+          if (aIsFile !== bIsFile) return aIsFile ? 1 : -1;
+          return a.localeCompare(b);
+        });
+
+        for (const [name, value] of entries) {
+          if (name.startsWith('__')) continue;
+
+          const isFile = value.__isFile;
+          const indentPadding = 15 + depth * 15; // Base 15px + 15px per depth level
+
+          if (isFile) {
+            const item = document.createElement('div');
+            item.className = 'tree-item tree-file';
+            item.style.paddingLeft = `${indentPadding}px`;
+            item.textContent = name;
+            item.dataset.nodeId = value.__nodeId;
+            item.addEventListener('click', () => focusNode(value.__nodeId));
+            container.appendChild(item);
+          } else {
+            const folder = document.createElement('div');
+            folder.className = 'tree-item tree-folder';
+            folder.style.paddingLeft = `${indentPadding}px`;
+            folder.textContent = name;
+
+            const children = document.createElement('div');
+            children.className = 'tree-children';
+
+            folder.addEventListener('click', () => {
+              folder.classList.toggle('open');
+              children.classList.toggle('open');
+            });
+
+            container.appendChild(folder);
+            container.appendChild(children);
+
+            renderFileTree(value, children, depth + 1);
+          }
+        }
+      }
+
+      // Focus on a node in the graph
+      function focusNode(nodeId) {
+        const node = cy.getElementById(nodeId);
+        if (node.length > 0) {
+          // Clear previous selection
+          cy.elements().unselect();
+          document.querySelectorAll('.tree-item.selected').forEach((el) => {
+            el.classList.remove('selected');
+          });
+
+          // Select and focus
+          node.select();
+          cy.animate({
+            center: { eles: node },
+            zoom: 1.5,
+            duration: 300,
+          });
+
+          // Highlight in tree
+          const treeItem = document.querySelector(`[data-node-id="${nodeId}"]`);
+          if (treeItem) {
+            treeItem.classList.add('selected');
+          }
+
+          // Show node info
+          showNodeInfo(node.data());
+        }
+      }
+
+      // Search functionality
+      function setupSearch() {
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+
+        searchInput.addEventListener('input', (e) => {
+          const query = e.target.value.toLowerCase().trim();
+
+          // Clear previous highlights
+          document.querySelectorAll('.tree-item.match').forEach((el) => {
+            el.classList.remove('match');
+          });
+          cy.nodes().removeClass('highlighted');
+
+          if (!query) {
+            searchResults.textContent = '';
+            return;
+          }
+
+          // Find matching nodes
+          const matches = graphNodes.filter(
+            (n) =>
+              n.label.toLowerCase().includes(query) ||
+              n.filePath.toLowerCase().includes(query)
+          );
+
+          searchResults.textContent = `${matches.length} result${matches.length !== 1 ? 's' : ''}`;
+
+          // Highlight in tree
+          for (const match of matches) {
+            const treeItem = document.querySelector(
+              `[data-node-id="${match.id}"]`
+            );
+            if (treeItem) {
+              treeItem.classList.add('match');
+              // Expand parent folders
+              let parent = treeItem.parentElement;
+              while (parent) {
+                if (parent.classList.contains('tree-children')) {
+                  parent.classList.add('open');
+                  const folder = parent.previousElementSibling;
+                  if (folder && folder.classList.contains('tree-folder')) {
+                    folder.classList.add('open');
+                  }
+                }
+                parent = parent.parentElement;
+              }
+            }
+
+            // Highlight in graph
+            const node = cy.getElementById(match.id);
+            if (node.length > 0) {
+              node.addClass('highlighted');
+            }
+          }
+
+          // Focus on first match if Enter is pressed
+          if (matches.length > 0) {
+            searchInput.onkeydown = (evt) => {
+              if (evt.key === 'Enter') {
+                focusNode(matches[0].id);
+              } else if (evt.key === 'Escape') {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+              }
+            };
+          }
+        });
+      }
 
       async function init() {
         // Fetch graph data
         const response = await fetch('/api/graph');
         const graph = await response.json();
 
+        // Store for search
+        graphNodes = graph.nodes;
+
         document.getElementById('loading').style.display = 'none';
         document.getElementById('stats').textContent =
           `${graph.nodes.length} nodes, ${graph.edges.length} edges, ${graph.metadata.fileCount} files`;
+
+        // Build and render file tree
+        const tree = buildFileTree(graph.nodes);
+        const treeContainer = document.getElementById('file-tree');
+        renderFileTree(tree, treeContainer);
 
         // Convert to Cytoscape format
         const elements = [];
@@ -419,6 +717,14 @@
                 display: 'none',
               },
             },
+            {
+              selector: '.highlighted',
+              style: {
+                'border-width': 4,
+                'border-color': '#e94560',
+                'border-style': 'double',
+              },
+            },
           ],
           layout: {
             name: 'dagre',
@@ -436,8 +742,9 @@
           showNodeInfo(node.data());
         });
 
-        // Setup controls
+        // Setup controls and search
         setupControls();
+        setupSearch();
       }
 
       function showNodeInfo(data) {
