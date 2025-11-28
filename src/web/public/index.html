@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>graphts - Dependency Graph Visualizer</title>
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #1a1a2e;
+        color: #eee;
+        overflow: hidden;
+      }
+
+      #header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 50px;
+        background: #16213e;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 20px;
+        z-index: 100;
+        border-bottom: 1px solid #0f3460;
+      }
+
+      #header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #e94560;
+      }
+
+      #stats {
+        font-size: 14px;
+        color: #888;
+      }
+
+      #controls {
+        display: flex;
+        gap: 10px;
+        margin-left: auto;
+      }
+
+      button {
+        background: #0f3460;
+        color: #eee;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.2s;
+      }
+
+      button:hover {
+        background: #e94560;
+      }
+
+      select {
+        background: #0f3460;
+        color: #eee;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+
+      #cy {
+        position: fixed;
+        top: 50px;
+        left: 0;
+        right: 300px;
+        bottom: 0;
+      }
+
+      #sidebar {
+        position: fixed;
+        top: 50px;
+        right: 0;
+        width: 300px;
+        bottom: 0;
+        background: #16213e;
+        border-left: 1px solid #0f3460;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      #sidebar h2 {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      #node-info {
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      #node-info .label {
+        color: #e94560;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      #node-info .type {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        text-transform: uppercase;
+        margin-bottom: 15px;
+      }
+
+      #node-info .type.module {
+        background: #3498db;
+      }
+      #node-info .type.function {
+        background: #2ecc71;
+      }
+      #node-info .type.class {
+        background: #9b59b6;
+      }
+      #node-info .type.variable {
+        background: #f39c12;
+      }
+      #node-info .type.component {
+        background: #e74c3c;
+      }
+      #node-info .type.interface {
+        background: #1abc9c;
+      }
+      #node-info .type.type {
+        background: #e67e22;
+      }
+
+      #node-info .path {
+        color: #888;
+        font-family: monospace;
+        font-size: 12px;
+        word-break: break-all;
+      }
+
+      #node-info .location {
+        color: #666;
+        font-size: 12px;
+        margin-top: 5px;
+      }
+
+      #filter-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #0f3460;
+      }
+
+      #filter-section label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 8px 0;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      #filter-section input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+      }
+
+      #legend {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #0f3460;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px 0;
+        font-size: 12px;
+      }
+
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+      }
+
+      #loading {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 18px;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h1>graphts</h1>
+      <span id="stats">Loading...</span>
+      <div id="controls">
+        <select id="layout">
+          <option value="dagre">Hierarchical (dagre)</option>
+          <option value="cose">Force-directed (cose)</option>
+          <option value="breadthfirst">Breadthfirst</option>
+          <option value="circle">Circle</option>
+          <option value="grid">Grid</option>
+        </select>
+        <button id="fit-btn">Fit to Screen</button>
+        <button id="export-btn">Export PNG</button>
+      </div>
+    </div>
+
+    <div id="cy"></div>
+
+    <div id="sidebar">
+      <h2>Node Details</h2>
+      <div id="node-info">
+        <p style="color: #666">Click a node to see details</p>
+      </div>
+
+      <div id="filter-section">
+        <h2>Filter by Type</h2>
+        <label
+          ><input type="checkbox" data-type="module" checked /> Modules</label
+        >
+        <label
+          ><input type="checkbox" data-type="function" checked />
+          Functions</label
+        >
+        <label
+          ><input type="checkbox" data-type="class" checked /> Classes</label
+        >
+        <label
+          ><input type="checkbox" data-type="variable" checked />
+          Variables</label
+        >
+        <label
+          ><input type="checkbox" data-type="component" checked />
+          Components</label
+        >
+        <label
+          ><input type="checkbox" data-type="interface" checked />
+          Interfaces</label
+        >
+        <label><input type="checkbox" data-type="type" checked /> Types</label>
+      </div>
+
+      <div id="legend">
+        <h2>Legend</h2>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #3498db"></div>
+          Module
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #2ecc71"></div>
+          Function
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #9b59b6"></div>
+          Class
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #f39c12"></div>
+          Variable
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #e74c3c"></div>
+          Component
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #1abc9c"></div>
+          Interface
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #e67e22"></div>
+          Type
+        </div>
+      </div>
+    </div>
+
+    <div id="loading">Loading graph...</div>
+
+    <script>
+      const NODE_COLORS = {
+        module: '#3498db',
+        function: '#2ecc71',
+        class: '#9b59b6',
+        variable: '#f39c12',
+        component: '#e74c3c',
+        interface: '#1abc9c',
+        type: '#e67e22',
+      };
+
+      const EDGE_COLORS = {
+        import: '#3498db',
+        export: '#2ecc71',
+        call: '#e74c3c',
+        reference: '#f39c12',
+        extends: '#9b59b6',
+        implements: '#1abc9c',
+      };
+
+      let cy;
+
+      async function init() {
+        // Fetch graph data
+        const response = await fetch('/api/graph');
+        const graph = await response.json();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('stats').textContent =
+          `${graph.nodes.length} nodes, ${graph.edges.length} edges, ${graph.metadata.fileCount} files`;
+
+        // Convert to Cytoscape format
+        const elements = [];
+
+        // Add nodes
+        for (const node of graph.nodes) {
+          elements.push({
+            data: {
+              id: node.id,
+              label: node.label,
+              type: node.type,
+              filePath: node.filePath,
+              line: node.line,
+              column: node.column,
+              metadata: node.metadata,
+            },
+          });
+        }
+
+        // Add edges
+        for (const edge of graph.edges) {
+          // Only add edge if both source and target exist
+          const sourceExists = graph.nodes.some((n) => n.id === edge.source);
+          const targetExists = graph.nodes.some((n) => n.id === edge.target);
+
+          if (sourceExists && targetExists) {
+            elements.push({
+              data: {
+                id: `${edge.source}->${edge.target}`,
+                source: edge.source,
+                target: edge.target,
+                type: edge.type,
+              },
+            });
+          }
+        }
+
+        // Initialize Cytoscape
+        cy = cytoscape({
+          container: document.getElementById('cy'),
+          elements,
+          style: [
+            {
+              selector: 'node',
+              style: {
+                label: 'data(label)',
+                'background-color': (ele) =>
+                  NODE_COLORS[ele.data('type')] || '#888',
+                color: '#fff',
+                'text-valign': 'bottom',
+                'text-margin-y': 5,
+                'font-size': 10,
+                width: (ele) => (ele.data('type') === 'module' ? 30 : 20),
+                height: (ele) => (ele.data('type') === 'module' ? 30 : 20),
+                'border-width': 2,
+                'border-color': '#1a1a2e',
+              },
+            },
+            {
+              selector: 'node:selected',
+              style: {
+                'border-width': 3,
+                'border-color': '#e94560',
+              },
+            },
+            {
+              selector: 'edge',
+              style: {
+                width: 1,
+                'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
+                'target-arrow-color': (ele) =>
+                  EDGE_COLORS[ele.data('type')] || '#666',
+                'target-arrow-shape': 'triangle',
+                'curve-style': 'bezier',
+                opacity: 0.6,
+              },
+            },
+            {
+              selector: 'edge:selected',
+              style: {
+                width: 2,
+                opacity: 1,
+              },
+            },
+            {
+              selector: '.hidden',
+              style: {
+                display: 'none',
+              },
+            },
+          ],
+          layout: {
+            name: 'dagre',
+            rankDir: 'TB',
+            nodeSep: 50,
+            rankSep: 80,
+            animate: false,
+          },
+          wheelSensitivity: 0.3,
+        });
+
+        // Node click handler
+        cy.on('tap', 'node', (evt) => {
+          const node = evt.target;
+          showNodeInfo(node.data());
+        });
+
+        // Setup controls
+        setupControls();
+      }
+
+      function showNodeInfo(data) {
+        const info = document.getElementById('node-info');
+        info.innerHTML = `
+        <div class="label">${data.label}</div>
+        <div class="type ${data.type}">${data.type}</div>
+        <div class="path">${data.filePath}</div>
+        <div class="location">Line ${data.line}, Column ${data.column}</div>
+        ${data.metadata ? `<pre style="margin-top: 10px; font-size: 11px; color: #888;">${JSON.stringify(data.metadata, null, 2)}</pre>` : ''}
+      `;
+      }
+
+      function setupControls() {
+        // Layout selector
+        document.getElementById('layout').addEventListener('change', (e) => {
+          const layoutName = e.target.value;
+          const layoutOptions = {
+            name: layoutName,
+            animate: true,
+            animationDuration: 500,
+          };
+
+          if (layoutName === 'dagre') {
+            layoutOptions.rankDir = 'TB';
+            layoutOptions.nodeSep = 50;
+            layoutOptions.rankSep = 80;
+          }
+
+          cy.layout(layoutOptions).run();
+        });
+
+        // Fit button
+        document.getElementById('fit-btn').addEventListener('click', () => {
+          cy.fit();
+        });
+
+        // Export button
+        document.getElementById('export-btn').addEventListener('click', () => {
+          const png = cy.png({ full: true, scale: 2 });
+          const link = document.createElement('a');
+          link.download = 'dependency-graph.png';
+          link.href = png;
+          link.click();
+        });
+
+        // Type filters
+        document
+          .querySelectorAll('#filter-section input[type="checkbox"]')
+          .forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+              const type = checkbox.dataset.type;
+              const visible = checkbox.checked;
+
+              cy.nodes().forEach((node) => {
+                if (node.data('type') === type) {
+                  if (visible) {
+                    node.removeClass('hidden');
+                  } else {
+                    node.addClass('hidden');
+                  }
+                }
+              });
+            });
+          });
+      }
+
+      init().catch(console.error);
+    </script>
+  </body>
+</html>

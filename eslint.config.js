@@ -40,8 +40,14 @@ export default [
         {
           patterns: [
             {
-              group: ['**/application/**', '**/infrastructure/**', '**/cli/**', '**/web/**'],
-              message: 'Domain layer cannot import from application, infrastructure, cli, or web layers.',
+              group: [
+                '**/application/**',
+                '**/infrastructure/**',
+                '**/cli/**',
+                '**/web/**',
+              ],
+              message:
+                'Domain layer cannot import from application, infrastructure, cli, or web layers.',
             },
           ],
         },
@@ -75,11 +81,19 @@ export default [
           patterns: [
             {
               group: ['**/application/**', '**/cli/**', '**/web/**'],
-              message: 'Infrastructure layer can only import from domain layer.',
+              message:
+                'Infrastructure layer can only import from domain layer.',
             },
           ],
         },
       ],
+    },
+  },
+  // Test files: relax some rules
+  {
+    files: ['src/**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off', // vitest mocks don't have this binding concerns
     },
   },
   {
