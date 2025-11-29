@@ -1,13 +1,39 @@
+/**
+ * @fileoverview File reader adapter implementation.
+ * @module infrastructure/file-system/file-reader
+ *
+ * This module provides a Node.js file system implementation
+ * of the IFileReader port interface.
+ */
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { IFileReader, FileReaderOptions } from '../../domain/index.js';
 
 /**
  * Node.js file system implementation of IFileReader.
+ *
+ * This adapter implements the IFileReader port using Node.js
+ * built-in file system APIs to discover and read TypeScript files.
+ *
+ * @example
+ * ```typescript
+ * const fileReader = new FileReaderAdapter();
+ * const files = fileReader.findFiles('/path/to/project', {
+ *   exclude: ['**\/*.test.ts'],
+ * });
+ * ```
  */
 export class FileReaderAdapter implements IFileReader {
   /**
-   * Finds all TypeScript files in the given directory
+   * Finds all TypeScript files in the given directory.
+   *
+   * Recursively searches the directory tree for `.ts` and `.tsx` files,
+   * excluding declaration files (`.d.ts`) and specified patterns.
+   *
+   * @param rootDir - Root directory to search for files
+   * @param options - Optional file filtering options
+   * @returns Array of absolute file paths to TypeScript files
    */
   findFiles(rootDir: string, options?: FileReaderOptions): string[] {
     const files: string[] = [];
@@ -19,22 +45,26 @@ export class FileReaderAdapter implements IFileReader {
   }
 
   /**
-   * Reads the content of a file
+   * Reads the content of a file.
+   *
+   * @param filePath - Absolute path to the file to read
+   * @returns File content as a UTF-8 encoded string
+   * @throws Error if the file cannot be read
    */
   readFile(filePath: string): string {
     return fs.readFileSync(filePath, 'utf-8');
   }
 
   /**
-   * Checks if a file exists
+   * Checks if a file exists at the given path.
+   *
+   * @param filePath - Absolute path to check
+   * @returns True if the file exists, false otherwise
    */
   exists(filePath: string): boolean {
     return fs.existsSync(filePath);
   }
 
-  /**
-   * Recursively walks a directory and collects TypeScript files
-   */
   private walkDirectory(
     dir: string,
     files: string[],
@@ -45,7 +75,6 @@ export class FileReaderAdapter implements IFileReader {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
 
-      // Skip excluded directories
       if (this.isExcluded(fullPath, exclude)) {
         continue;
       }
@@ -58,11 +87,7 @@ export class FileReaderAdapter implements IFileReader {
     }
   }
 
-  /**
-   * Checks if a path should be excluded
-   */
   private isExcluded(filePath: string, exclude: readonly string[]): boolean {
-    // Simple check for common exclusions
     for (const pattern of exclude) {
       if (
         pattern.includes('node_modules') &&
@@ -77,9 +102,6 @@ export class FileReaderAdapter implements IFileReader {
     return false;
   }
 
-  /**
-   * Checks if a file is a TypeScript file
-   */
   private isTypeScriptFile(fileName: string): boolean {
     return (
       (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) &&

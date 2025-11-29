@@ -1,3 +1,12 @@
+/**
+ * @fileoverview TypeScript parser adapter implementation.
+ * @module infrastructure/typescript-parser
+ *
+ * This module provides a TypeScript Compiler API implementation
+ * of the IParser port interface. It analyzes TypeScript source files
+ * and extracts nodes (symbols) and edges (dependencies).
+ */
+
 import ts from 'typescript';
 import * as path from 'node:path';
 import type {
@@ -12,11 +21,34 @@ import { createNode, createEdge } from '../../domain/index.js';
 
 /**
  * TypeScript Compiler API implementation of IParser.
- * Parses TypeScript source files and extracts dependency information.
+ *
+ * This adapter uses the TypeScript Compiler API to parse source files
+ * and extract dependency information including:
+ * - Functions, classes, interfaces, types, enums, and variables
+ * - Import and export relationships
+ * - Class inheritance (extends) and interface implementation (implements)
+ * - React components (both functional and class-based)
+ *
+ * @example
+ * ```typescript
+ * const parser = new TypeScriptParserAdapter();
+ * const parsedFiles = parser.parse(filePaths, {
+ *   rootDir: '/path/to/project',
+ *   tsconfigPath: '/path/to/project/tsconfig.json',
+ * });
+ * ```
  */
 export class TypeScriptParserAdapter implements IParser {
   /**
-   * Parses source files and extracts dependency information
+   * Parses source files and extracts dependency information.
+   *
+   * Performs two passes:
+   * 1. Collects re-export mappings from all files
+   * 2. Parses files with resolved re-exports to build nodes and edges
+   *
+   * @param filePaths - Array of absolute file paths to parse
+   * @param options - Parser configuration including root directory and tsconfig path
+   * @returns Array of parsed file information with nodes and edges
    */
   parse(filePaths: readonly string[], options: ParserOptions): ParsedFile[] {
     const tsconfigPath =
