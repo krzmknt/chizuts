@@ -169,6 +169,67 @@
         font-size: 12px;
       }
 
+      .tree-symbol {
+        color: #ccc;
+      }
+
+      .symbol-icon {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+        text-align: center;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-right: 4px;
+      }
+
+      .tree-symbol-function .symbol-icon {
+        background: #2ecc71;
+        color: #fff;
+      }
+
+      .tree-symbol-class .symbol-icon {
+        background: #9b59b6;
+        color: #fff;
+      }
+
+      .tree-symbol-variable .symbol-icon {
+        background: #f39c12;
+        color: #fff;
+      }
+
+      .tree-symbol-component .symbol-icon {
+        background: #e74c3c;
+        color: #fff;
+      }
+
+      .tree-symbol-interface .symbol-icon {
+        background: #1abc9c;
+        color: #fff;
+      }
+
+      .tree-symbol-type .symbol-icon {
+        background: #e67e22;
+        color: #fff;
+      }
+
+      .tree-symbol-enum .symbol-icon {
+        background: #8e44ad;
+        color: #fff;
+      }
+
+      .tree-symbol-method .symbol-icon {
+        background: #27ae60;
+        color: #fff;
+      }
+
+      .tree-symbol-field .symbol-icon {
+        background: #d35400;
+        color: #fff;
+      }
+
       .tree-children {
         display: none;
       }
@@ -297,10 +358,58 @@
         font-size: 12px;
       }
 
+      .legend-item.clickable {
+        cursor: pointer;
+        padding: 4px 8px;
+        margin: 4px -8px;
+        border-radius: 4px;
+        transition:
+          background 0.15s,
+          opacity 0.15s;
+      }
+
+      .legend-item.clickable:hover {
+        background: #0f3460;
+      }
+
+      .legend-item.clickable.inactive {
+        opacity: 0.4;
+      }
+
+      .legend-item.clickable.inactive .legend-color {
+        background: #555 !important;
+      }
+
       .legend-color {
         width: 12px;
         height: 12px;
         border-radius: 2px;
+      }
+
+      .legend-line {
+        width: 20px;
+        height: 3px;
+        border-radius: 1px;
+      }
+
+      #edge-legend {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #0f3460;
+      }
+
+      #pattern-filter {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #0f3460;
+      }
+
+      #pattern-filter h2 {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
 
       #loading {
@@ -353,63 +462,141 @@
         <p style="color: #666">Click a node to see details</p>
       </div>
 
-      <div id="filter-section">
-        <h2>Filter by Type</h2>
-        <label
-          ><input type="checkbox" data-type="module" checked /> Modules</label
-        >
-        <label
-          ><input type="checkbox" data-type="function" checked />
-          Functions</label
-        >
-        <label
-          ><input type="checkbox" data-type="class" checked /> Classes</label
-        >
-        <label
-          ><input type="checkbox" data-type="variable" checked />
-          Variables</label
-        >
-        <label
-          ><input type="checkbox" data-type="component" checked />
-          Components</label
-        >
-        <label
-          ><input type="checkbox" data-type="interface" checked />
-          Interfaces</label
-        >
-        <label><input type="checkbox" data-type="type" checked /> Types</label>
-      </div>
-
       <div id="legend">
-        <h2>Legend</h2>
-        <div class="legend-item">
+        <h2>Nodes</h2>
+        <div class="legend-item clickable" data-type="module">
           <div class="legend-color" style="background: #3498db"></div>
           Module
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="function">
           <div class="legend-color" style="background: #2ecc71"></div>
           Function
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="class">
           <div class="legend-color" style="background: #9b59b6"></div>
           Class
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="variable">
           <div class="legend-color" style="background: #f39c12"></div>
           Variable
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="component">
           <div class="legend-color" style="background: #e74c3c"></div>
           Component
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="interface">
           <div class="legend-color" style="background: #1abc9c"></div>
           Interface
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-type="type">
           <div class="legend-color" style="background: #e67e22"></div>
           Type
         </div>
+        <div class="legend-item clickable" data-type="enum">
+          <div class="legend-color" style="background: #8e44ad"></div>
+          Enum
+        </div>
+        <div class="legend-item clickable" data-type="method">
+          <div class="legend-color" style="background: #27ae60"></div>
+          Method
+        </div>
+        <div class="legend-item clickable" data-type="field">
+          <div class="legend-color" style="background: #d35400"></div>
+          Field
+        </div>
+      </div>
+
+      <div id="edge-legend">
+        <h2>Edges</h2>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #3498db"></div>
+          import
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #7f8c8d"></div>
+          defines
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #e74c3c"></div>
+          call
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #f39c12"></div>
+          reference
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #9b59b6"></div>
+          extends
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background: #e91e63"></div>
+          implements
+        </div>
+      </div>
+
+      <div id="pattern-filter">
+        <h2>Pattern Filter</h2>
+        <div style="margin-bottom: 10px">
+          <label
+            style="
+              font-size: 12px;
+              color: #888;
+              display: block;
+              margin-bottom: 4px;
+            "
+            >Exclude patterns (one per line)</label
+          >
+          <textarea
+            id="exclude-patterns"
+            placeholder="*test*&#10;*.spec.*&#10;__mocks__/*"
+            rows="3"
+            style="
+              width: 100%;
+              background: #0f3460;
+              color: #eee;
+              border: 1px solid #1a1a2e;
+              border-radius: 4px;
+              padding: 8px;
+              font-size: 12px;
+              font-family: monospace;
+              resize: vertical;
+            "
+          ></textarea>
+        </div>
+        <div style="margin-bottom: 10px">
+          <label
+            style="
+              font-size: 12px;
+              color: #888;
+              display: block;
+              margin-bottom: 4px;
+            "
+            >Include patterns (empty = all)</label
+          >
+          <textarea
+            id="include-patterns"
+            placeholder="src/*&#10;*.ts"
+            rows="2"
+            style="
+              width: 100%;
+              background: #0f3460;
+              color: #eee;
+              border: 1px solid #1a1a2e;
+              border-radius: 4px;
+              padding: 8px;
+              font-size: 12px;
+              font-family: monospace;
+              resize: vertical;
+            "
+          ></textarea>
+        </div>
+        <button id="apply-pattern-filter" style="width: 100%">
+          Apply Filter
+        </button>
+        <div
+          id="filter-stats"
+          style="font-size: 11px; color: #888; margin-top: 8px"
+        ></div>
       </div>
     </div>
 
@@ -424,29 +611,39 @@
         component: '#e74c3c',
         interface: '#1abc9c',
         type: '#e67e22',
+        enum: '#8e44ad',
+        method: '#27ae60',
+        field: '#d35400',
       };
 
       const EDGE_COLORS = {
         import: '#3498db',
-        export: '#2ecc71',
+        export: '#7f8c8d', // "defines" - module contains this symbol
         call: '#e74c3c',
         reference: '#f39c12',
         extends: '#9b59b6',
-        implements: '#1abc9c',
+        implements: '#e91e63', // pink - distinct from green
       };
 
       let cy;
       let graphNodes = [];
 
-      // Build directory tree from relative file paths
+      // Build directory tree from relative file paths with child symbols
       function buildFileTree(nodes) {
         const tree = {};
 
-        // Get unique file paths (modules only)
+        // Get modules and their children
         const modules = nodes.filter((n) => n.type === 'module');
+        const topLevelSymbols = nodes.filter(
+          (n) =>
+            n.type !== 'module' && n.type !== 'method' && n.type !== 'field'
+        );
+        const memberSymbols = nodes.filter(
+          (n) => n.type === 'method' || n.type === 'field'
+        );
 
+        // Build module tree
         for (const node of modules) {
-          // Use label which contains the relative path
           const parts = node.label.split('/').filter(Boolean);
           let current = tree;
 
@@ -456,15 +653,126 @@
 
             if (!current[part]) {
               current[part] = isFile
-                ? { __isFile: true, __nodeId: node.id, __label: node.label }
+                ? {
+                    __isFile: true,
+                    __nodeId: node.id,
+                    __label: node.label,
+                    __children: [],
+                  }
                 : {};
             }
             current = current[part];
           }
         }
 
+        // Add top-level symbols to their parent modules
+        for (const symbol of topLevelSymbols) {
+          // Find parent module by matching file path
+          const parentModule = modules.find((m) =>
+            symbol.id.startsWith(m.id + '#')
+          );
+          if (parentModule) {
+            const parts = parentModule.label.split('/').filter(Boolean);
+            let current = tree;
+
+            for (const part of parts) {
+              if (current[part]) {
+                current = current[part];
+              }
+            }
+
+            if (current.__children) {
+              current.__children.push({
+                id: symbol.id,
+                label: symbol.label,
+                type: symbol.type,
+                __members: [], // For classes to hold methods/fields
+              });
+            }
+          }
+        }
+
+        // Add methods/fields to their parent class
+        for (const member of memberSymbols) {
+          // Member ID format: module#ClassName.memberName
+          // Find parent class by checking if class ID is prefix of member ID
+          const parentClass = topLevelSymbols.find(
+            (s) => s.type === 'class' && member.id.startsWith(s.id + '.')
+          );
+          if (parentClass) {
+            // Find the class in the tree and add the member
+            const parentModule = modules.find((m) =>
+              parentClass.id.startsWith(m.id + '#')
+            );
+            if (parentModule) {
+              const parts = parentModule.label.split('/').filter(Boolean);
+              let current = tree;
+
+              for (const part of parts) {
+                if (current[part]) {
+                  current = current[part];
+                }
+              }
+
+              if (current.__children) {
+                const classEntry = current.__children.find(
+                  (c) => c.id === parentClass.id
+                );
+                if (classEntry && classEntry.__members) {
+                  classEntry.__members.push({
+                    id: member.id,
+                    label: member.label,
+                    type: member.type,
+                  });
+                }
+              }
+            }
+          }
+        }
+
         return tree;
       }
+
+      // Convert glob pattern to regex
+      function globToRegex(glob) {
+        // Escape special regex characters except * and ?
+        let regex = glob
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          // Convert ** to match anything including /
+          .replace(/\*\*/g, '.*')
+          // Convert * to match anything except /
+          .replace(/\*/g, '[^/]*')
+          // Convert ? to match single character
+          .replace(/\?/g, '.');
+        return new RegExp(regex, 'i');
+      }
+
+      // Check if a path matches any of the patterns
+      function matchesPatterns(path, patterns) {
+        if (!patterns || patterns.length === 0) return false;
+        return patterns.some((pattern) => {
+          try {
+            const regex = globToRegex(pattern);
+            return regex.test(path);
+          } catch (e) {
+            return false;
+          }
+        });
+      }
+
+      // Symbol type icons
+      const SYMBOL_ICONS = {
+        module: 'M',
+        function: 'ƒ',
+        class: 'C',
+        variable: 'V',
+        component: '⚛',
+        interface: 'I',
+        type: 'T',
+        enum: 'E',
+        method: 'm',
+        field: 'f',
+      };
 
       // Render the file tree
       function renderFileTree(tree, container, depth = 0) {
@@ -483,13 +791,79 @@
           const indentPadding = 15 + depth * 15; // Base 15px + 15px per depth level
 
           if (isFile) {
-            const item = document.createElement('div');
-            item.className = 'tree-item tree-file';
-            item.style.paddingLeft = `${indentPadding}px`;
-            item.textContent = name;
-            item.dataset.nodeId = value.__nodeId;
-            item.addEventListener('click', () => focusNode(value.__nodeId));
-            container.appendChild(item);
+            const fileItem = document.createElement('div');
+            fileItem.className = 'tree-item tree-file';
+            fileItem.style.paddingLeft = `${indentPadding}px`;
+            fileItem.textContent = name;
+            fileItem.dataset.nodeId = value.__nodeId;
+
+            const fileChildren = document.createElement('div');
+            fileChildren.className = 'tree-children';
+
+            // Render symbol children
+            if (value.__children && value.__children.length > 0) {
+              const sortedSymbols = value.__children.sort((a, b) =>
+                a.label.localeCompare(b.label)
+              );
+
+              for (const symbol of sortedSymbols) {
+                const symbolItem = document.createElement('div');
+                symbolItem.className = `tree-item tree-symbol tree-symbol-${symbol.type}`;
+                symbolItem.style.paddingLeft = `${indentPadding + 15}px`;
+                symbolItem.dataset.nodeId = symbol.id;
+                symbolItem.innerHTML = `<span class="symbol-icon">${SYMBOL_ICONS[symbol.type] || '•'}</span> ${symbol.label}`;
+
+                // If symbol has members (class with methods/fields), make it expandable
+                if (symbol.__members && symbol.__members.length > 0) {
+                  const memberContainer = document.createElement('div');
+                  memberContainer.className = 'tree-children';
+
+                  const sortedMembers = symbol.__members.sort((a, b) =>
+                    a.label.localeCompare(b.label)
+                  );
+
+                  for (const member of sortedMembers) {
+                    const memberItem = document.createElement('div');
+                    memberItem.className = `tree-item tree-symbol tree-symbol-${member.type}`;
+                    memberItem.style.paddingLeft = `${indentPadding + 30}px`;
+                    memberItem.dataset.nodeId = member.id;
+                    memberItem.innerHTML = `<span class="symbol-icon">${SYMBOL_ICONS[member.type] || '•'}</span> ${member.label}`;
+                    memberItem.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      focusNode(member.id);
+                    });
+                    memberContainer.appendChild(memberItem);
+                  }
+
+                  symbolItem.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    symbolItem.classList.toggle('open');
+                    memberContainer.classList.toggle('open');
+                    focusNode(symbol.id);
+                  });
+
+                  fileChildren.appendChild(symbolItem);
+                  fileChildren.appendChild(memberContainer);
+                } else {
+                  symbolItem.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    focusNode(symbol.id);
+                  });
+                  fileChildren.appendChild(symbolItem);
+                }
+              }
+            }
+
+            fileItem.addEventListener('click', () => {
+              fileItem.classList.toggle('open');
+              fileChildren.classList.toggle('open');
+              focusNode(value.__nodeId);
+            });
+
+            container.appendChild(fileItem);
+            if (value.__children && value.__children.length > 0) {
+              container.appendChild(fileChildren);
+            }
           } else {
             const folder = document.createElement('div');
             folder.className = 'tree-item tree-folder';
@@ -576,14 +950,14 @@
             );
             if (treeItem) {
               treeItem.classList.add('match');
-              // Expand parent folders
+              // Expand parent folders and files
               let parent = treeItem.parentElement;
               while (parent) {
                 if (parent.classList.contains('tree-children')) {
                   parent.classList.add('open');
-                  const folder = parent.previousElementSibling;
-                  if (folder && folder.classList.contains('tree-folder')) {
-                    folder.classList.add('open');
+                  const prevSibling = parent.previousElementSibling;
+                  if (prevSibling) {
+                    prevSibling.classList.add('open');
                   }
                 }
                 parent = parent.parentElement;
@@ -638,6 +1012,7 @@
               id: node.id,
               label: node.label,
               type: node.type,
+              icon: SYMBOL_ICONS[node.type] || '•',
               filePath: node.filePath,
               line: node.line,
               column: node.column,
@@ -646,11 +1021,14 @@
           });
         }
 
-        // Add edges
+        // Add edges - build a Set of node IDs for O(1) lookup
+        const nodeIdSet = new Set(graph.nodes.map((n) => n.id));
+        let skippedEdges = 0;
+
         for (const edge of graph.edges) {
           // Only add edge if both source and target exist
-          const sourceExists = graph.nodes.some((n) => n.id === edge.source);
-          const targetExists = graph.nodes.some((n) => n.id === edge.target);
+          const sourceExists = nodeIdSet.has(edge.source);
+          const targetExists = nodeIdSet.has(edge.target);
 
           if (sourceExists && targetExists) {
             elements.push({
@@ -661,80 +1039,191 @@
                 type: edge.type,
               },
             });
+          } else {
+            skippedEdges++;
           }
         }
 
+        if (skippedEdges > 0) {
+          console.log(
+            '[graphts] Skipped',
+            skippedEdges,
+            'edges with missing nodes'
+          );
+        }
+
         // Initialize Cytoscape
-        cy = cytoscape({
-          container: document.getElementById('cy'),
-          elements,
-          style: [
-            {
-              selector: 'node',
-              style: {
-                label: 'data(label)',
-                'background-color': (ele) =>
-                  NODE_COLORS[ele.data('type')] || '#888',
-                color: '#fff',
-                'text-valign': 'bottom',
-                'text-margin-y': 5,
-                'font-size': 10,
-                width: (ele) => (ele.data('type') === 'module' ? 30 : 20),
-                height: (ele) => (ele.data('type') === 'module' ? 30 : 20),
-                'border-width': 2,
-                'border-color': '#1a1a2e',
+        console.log(
+          '[graphts] Initializing Cytoscape with',
+          elements.length,
+          'elements'
+        );
+        console.log(
+          '[graphts] Nodes:',
+          graph.nodes.length,
+          '| Valid edges:',
+          elements.length - graph.nodes.length
+        );
+
+        // Verify all edges reference existing nodes in elements
+        const nodeElements = elements.filter((e) => !e.data.source);
+        const elementNodeIds = new Set(nodeElements.map((e) => e.data.id));
+        const edgeElements = elements.filter((e) => e.data.source);
+        const orphanEdges = edgeElements.filter(
+          (e) =>
+            !elementNodeIds.has(e.data.source) ||
+            !elementNodeIds.has(e.data.target)
+        );
+        if (orphanEdges.length > 0) {
+          console.error(
+            '[graphts] Still have orphan edges after filtering:',
+            orphanEdges.length
+          );
+          orphanEdges.slice(0, 3).forEach((e) => {
+            console.error('  Edge:', e.data.source, '->', e.data.target);
+          });
+          // Remove orphan edges from elements
+          const validEdges = edgeElements.filter(
+            (e) =>
+              elementNodeIds.has(e.data.source) &&
+              elementNodeIds.has(e.data.target)
+          );
+          elements.length = 0;
+          elements.push(...nodeElements, ...validEdges);
+          console.log('[graphts] After cleanup:', elements.length, 'elements');
+        }
+
+        // Try to initialize with dagre layout, fall back to cose if it fails
+        let layoutName = 'dagre';
+        let layoutOptions = {
+          name: 'dagre',
+          rankDir: 'TB',
+          nodeSep: 50,
+          rankSep: 80,
+          animate: false,
+        };
+
+        try {
+          cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements,
+            style: [
+              {
+                selector: 'node',
+                style: {
+                  label: 'data(label)',
+                  'background-color': (ele) =>
+                    NODE_COLORS[ele.data('type')] || '#888',
+                  color: '#fff',
+                  'text-valign': 'bottom',
+                  'text-halign': 'center',
+                  'text-margin-y': 5,
+                  'font-size': 10,
+                  width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  'border-width': 2,
+                  'border-color': '#1a1a2e',
+                  'text-outline-width': 1,
+                  'text-outline-color': '#1a1a2e',
+                  // Icon inside node using background
+                  'background-image': (ele) => {
+                    const icon = ele.data('icon') || '•';
+                    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${icon}</text></svg>`;
+                    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+                  },
+                  'background-fit': 'contain',
+                  'background-clip': 'none',
+                },
               },
-            },
-            {
-              selector: 'node:selected',
-              style: {
-                'border-width': 3,
-                'border-color': '#e94560',
+              {
+                selector: 'node:selected',
+                style: {
+                  'border-width': 3,
+                  'border-color': '#e94560',
+                },
               },
-            },
-            {
-              selector: 'edge',
-              style: {
-                width: 1,
-                'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
-                'target-arrow-color': (ele) =>
-                  EDGE_COLORS[ele.data('type')] || '#666',
-                'target-arrow-shape': 'triangle',
-                'curve-style': 'bezier',
-                opacity: 0.6,
+              {
+                selector: 'edge',
+                style: {
+                  width: 1,
+                  'line-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-shape': 'triangle',
+                  'curve-style': 'bezier',
+                  opacity: 0.6,
+                },
               },
-            },
-            {
-              selector: 'edge:selected',
-              style: {
-                width: 2,
-                opacity: 1,
+              {
+                selector: 'edge:selected',
+                style: {
+                  width: 2,
+                  opacity: 1,
+                },
               },
-            },
-            {
-              selector: '.hidden',
-              style: {
-                display: 'none',
+              {
+                selector: '.hidden',
+                style: {
+                  display: 'none',
+                },
               },
-            },
-            {
-              selector: '.highlighted',
-              style: {
-                'border-width': 4,
-                'border-color': '#e94560',
-                'border-style': 'double',
+              {
+                selector: '.highlighted',
+                style: {
+                  'border-width': 4,
+                  'border-color': '#e94560',
+                  'border-style': 'double',
+                },
               },
-            },
-          ],
-          layout: {
-            name: 'dagre',
-            rankDir: 'TB',
-            nodeSep: 50,
-            rankSep: 80,
-            animate: false,
-          },
-          wheelSensitivity: 0.3,
-        });
+            ],
+            layout: layoutOptions,
+            wheelSensitivity: 0.3,
+          });
+        } catch (e) {
+          console.warn(
+            '[graphts] Dagre layout failed, falling back to cose:',
+            e.message
+          );
+          layoutName = 'cose';
+          layoutOptions = { name: 'cose', animate: false };
+          cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements,
+            style: [
+              {
+                selector: 'node',
+                style: {
+                  label: 'data(label)',
+                  'background-color': (ele) =>
+                    NODE_COLORS[ele.data('type')] || '#888',
+                  color: '#fff',
+                  'text-valign': 'bottom',
+                  'text-halign': 'center',
+                  'font-size': 10,
+                  width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                },
+              },
+              {
+                selector: 'edge',
+                style: {
+                  width: 1,
+                  'line-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-shape': 'triangle',
+                  'curve-style': 'bezier',
+                  opacity: 0.6,
+                },
+              },
+              { selector: '.hidden', style: { display: 'none' } },
+            ],
+            layout: layoutOptions,
+            wheelSensitivity: 0.3,
+          });
+        }
 
         // Node click handler
         cy.on('tap', 'node', (evt) => {
@@ -742,20 +1231,71 @@
           showNodeInfo(node.data());
         });
 
-        // Setup controls and search
+        // Setup controls, search, and pattern filter
         setupControls();
         setupSearch();
+
+        // Fetch filter config and setup pattern filter
+        try {
+          const configResponse = await fetch('/api/config');
+          const config = await configResponse.json();
+          console.log('[graphts] Fetched config:', config);
+          setupPatternFilter(config);
+        } catch (err) {
+          console.error('[graphts] Failed to fetch config:', err);
+          setupPatternFilter({});
+        }
       }
 
       function showNodeInfo(data) {
         const info = document.getElementById('node-info');
+        const metadata = data.metadata || {};
+
+        // Build TSDoc section
+        let tsdocHtml = '';
+        if (metadata.tsdoc) {
+          tsdocHtml = `
+            <div style="margin-top: 15px; padding: 10px; background: #0f3460; border-radius: 4px;">
+              <div style="font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase;">Documentation</div>
+              <div style="font-size: 12px; color: #ccc; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(metadata.tsdoc)}</div>
+            </div>
+          `;
+        }
+
+        // Build methods section
+        let methodsHtml = '';
+        if (metadata.methods && metadata.methods.length > 0) {
+          const methodsList = metadata.methods
+            .map((m) => {
+              const methodDoc = m.tsdoc
+                ? `<div style="font-size: 11px; color: #888; margin-top: 3px; margin-left: 20px;">${escapeHtml(m.tsdoc.split('\n')[0])}</div>`
+                : '';
+              return `<div style="margin: 6px 0;"><span style="color: #2ecc71; font-family: monospace;">ƒ</span> <span style="color: #eee;">${escapeHtml(m.name)}</span>${methodDoc}</div>`;
+            })
+            .join('');
+
+          methodsHtml = `
+            <div style="margin-top: 15px; padding: 10px; background: #0f3460; border-radius: 4px;">
+              <div style="font-size: 11px; color: #888; margin-bottom: 8px; text-transform: uppercase;">Public Methods</div>
+              ${methodsList}
+            </div>
+          `;
+        }
+
         info.innerHTML = `
-        <div class="label">${data.label}</div>
-        <div class="type ${data.type}">${data.type}</div>
-        <div class="path">${data.filePath}</div>
-        <div class="location">Line ${data.line}, Column ${data.column}</div>
-        ${data.metadata ? `<pre style="margin-top: 10px; font-size: 11px; color: #888;">${JSON.stringify(data.metadata, null, 2)}</pre>` : ''}
-      `;
+          <div class="label">${escapeHtml(data.label)}</div>
+          <div class="type ${data.type}">${data.type}</div>
+          <div class="path">${escapeHtml(data.filePath)}</div>
+          <div class="location">Line ${data.line}, Column ${data.column}</div>
+          ${tsdocHtml}
+          ${methodsHtml}
+        `;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
       }
 
       function setupControls() {
@@ -791,25 +1331,137 @@
           link.click();
         });
 
-        // Type filters
+        // Type filters via clickable legend items
         document
-          .querySelectorAll('#filter-section input[type="checkbox"]')
-          .forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-              const type = checkbox.dataset.type;
-              const visible = checkbox.checked;
+          .querySelectorAll('#legend .legend-item.clickable')
+          .forEach((item) => {
+            item.addEventListener('click', () => {
+              const type = item.dataset.type;
+              const isActive = !item.classList.contains('inactive');
+
+              // Toggle active state
+              item.classList.toggle('inactive');
 
               cy.nodes().forEach((node) => {
                 if (node.data('type') === type) {
-                  if (visible) {
-                    node.removeClass('hidden');
-                  } else {
+                  if (isActive) {
                     node.addClass('hidden');
+                  } else {
+                    node.removeClass('hidden');
                   }
                 }
               });
             });
           });
+      }
+
+      function setupPatternFilter(config = {}) {
+        console.log('[graphts] setupPatternFilter called with config:', config);
+
+        const applyBtn = document.getElementById('apply-pattern-filter');
+        const excludeInput = document.getElementById('exclude-patterns');
+        const includeInput = document.getElementById('include-patterns');
+        const filterStats = document.getElementById('filter-stats');
+
+        if (!excludeInput || !includeInput || !applyBtn || !filterStats) {
+          console.error('[graphts] Filter elements not found!', {
+            applyBtn: !!applyBtn,
+            excludeInput: !!excludeInput,
+            includeInput: !!includeInput,
+            filterStats: !!filterStats,
+          });
+          return;
+        }
+
+        // Set default values from CLI config
+        if (config.exclude && config.exclude.length > 0) {
+          excludeInput.value = config.exclude.join('\n');
+          console.log('[graphts] Set exclude patterns:', config.exclude);
+        }
+        if (config.include && config.include.length > 0) {
+          includeInput.value = config.include.join('\n');
+          console.log('[graphts] Set include patterns:', config.include);
+        }
+
+        const applyFilter = () => {
+          console.log('[graphts] applyFilter called');
+          console.log(
+            '[graphts] excludeInput.value:',
+            JSON.stringify(excludeInput.value)
+          );
+          console.log(
+            '[graphts] includeInput.value:',
+            JSON.stringify(includeInput.value)
+          );
+
+          // Parse patterns from textareas
+          const excludePatterns = excludeInput.value
+            .split('\n')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+          const includePatterns = includeInput.value
+            .split('\n')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+
+          console.log('[graphts] excludePatterns:', excludePatterns);
+          console.log('[graphts] includePatterns:', includePatterns);
+          console.log('[graphts] cy.nodes() count:', cy.nodes().length);
+
+          let hiddenCount = 0;
+          let shownCount = 0;
+
+          cy.nodes().forEach((node) => {
+            const filePath = node.data('filePath') || node.data('label') || '';
+            const label = node.data('label') || '';
+
+            // Check path against patterns (check both filePath and label)
+            const pathToCheck = filePath || label;
+
+            let shouldHide = false;
+
+            // If include patterns exist, only show matching nodes
+            if (includePatterns.length > 0) {
+              if (!matchesPatterns(pathToCheck, includePatterns)) {
+                shouldHide = true;
+              }
+            }
+
+            // If exclude patterns exist and node wasn't already hidden, check exclusion
+            if (!shouldHide && excludePatterns.length > 0) {
+              if (matchesPatterns(pathToCheck, excludePatterns)) {
+                shouldHide = true;
+              }
+            }
+
+            if (shouldHide) {
+              node.addClass('hidden');
+              hiddenCount++;
+            } else {
+              node.removeClass('hidden');
+              shownCount++;
+            }
+          });
+
+          // Update filter stats
+          if (excludePatterns.length > 0 || includePatterns.length > 0) {
+            filterStats.textContent = `Showing ${shownCount} nodes, ${hiddenCount} hidden`;
+          } else {
+            filterStats.textContent = 'All nodes visible';
+          }
+          console.log('[graphts] Filter applied:', { shownCount, hiddenCount });
+        };
+
+        applyBtn.addEventListener('click', applyFilter);
+
+        // Auto-apply if patterns are provided from CLI
+        if (
+          (config.exclude && config.exclude.length > 0) ||
+          (config.include && config.include.length > 0)
+        ) {
+          console.log('[graphts] Auto-applying filter from CLI config');
+          applyFilter();
+        }
       }
 
       // Connect to SSE for watch mode updates
@@ -839,6 +1491,7 @@
                     id: node.id,
                     label: node.label,
                     type: node.type,
+                    icon: SYMBOL_ICONS[node.type] || '•',
                     filePath: node.filePath,
                     line: node.line,
                     column: node.column,

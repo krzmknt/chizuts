@@ -214,6 +214,8 @@ async function main(): Promise<void> {
     graph,
     port: options.port,
     watch: options.watch,
+    ...(options.include.length > 0 && { include: options.include }),
+    ...(options.exclude.length > 0 && { exclude: options.exclude }),
   });
 
   // Set up file watching if watch mode is enabled
