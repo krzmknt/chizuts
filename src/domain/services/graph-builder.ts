@@ -1,20 +1,58 @@
+/**
+ * @fileoverview Graph builder domain service.
+ * @module domain/services/graph-builder
+ *
+ * This module provides the core domain service for building
+ * a dependency graph from parsed file data.
+ */
+
 import type { Node, Edge, DependencyGraph } from '../models/index.js';
 import { createDependencyGraph, createGraphMetadata } from '../models/index.js';
 import type { ParsedFile } from '../ports/index.js';
 
 /**
- * Options for building the dependency graph
+ * Configuration options for building the dependency graph.
+ *
+ * @example
+ * ```typescript
+ * const options: GraphBuilderOptions = {
+ *   rootDir: '/path/to/project',
+ *   version: '0.1.0',
+ * };
+ * ```
  */
 export interface GraphBuilderOptions {
-  /** Root directory being analyzed */
+  /**
+   * Root directory of the project being analyzed.
+   */
   readonly rootDir: string;
-  /** graphts version */
+
+  /**
+   * Optional version of graphts to include in metadata.
+   */
   readonly version?: string | undefined;
 }
 
 /**
  * Builds a DependencyGraph from parsed file data.
+ *
  * This is a pure domain service with no external dependencies.
+ * It aggregates nodes and edges from multiple parsed files,
+ * removing duplicates and creating the final graph structure.
+ *
+ * @param parsedFiles - Array of parsed file data containing nodes and edges
+ * @param options - Configuration options for the graph builder
+ * @returns A complete dependency graph with all nodes, edges, and metadata
+ *
+ * @example
+ * ```typescript
+ * const parsedFiles = parser.parse(filePaths, parserOptions);
+ * const graph = buildGraph(parsedFiles, {
+ *   rootDir: '/project',
+ *   version: '0.1.0',
+ * });
+ * console.log(`Graph has ${graph.nodes.length} nodes and ${graph.edges.length} edges`);
+ * ```
  */
 export function buildGraph(
   parsedFiles: readonly ParsedFile[],

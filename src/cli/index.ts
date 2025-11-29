@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * graphts CLI entry point
+ * @fileoverview graphts CLI entry point.
+ * @module cli
  *
- * Wires up dependencies and executes the analyze command.
+ * This module provides the command-line interface for graphts.
+ * It wires up dependencies and executes the analysis pipeline,
+ * then starts the visualization server.
  */
 
 import { AnalyzeProjectUseCase } from '../application/index.js';
@@ -13,19 +16,39 @@ import {
 } from '../infrastructure/index.js';
 import { startServer } from '../web/server/index.js';
 
+/**
+ * Current version of graphts.
+ */
 export const VERSION = '0.1.0';
 
+/**
+ * Parsed command-line options.
+ */
 export interface CliOptions {
+  /** Root directory to analyze */
   rootDir: string;
+  /** Port for the visualization server */
   port: number;
+  /** Glob patterns for files to include */
   include: string[];
+  /** Glob patterns for files to exclude */
   exclude: string[];
+  /** Path to tsconfig.json */
   tsconfigPath?: string | undefined;
+  /** Enable watch mode with auto-reload */
   watch: boolean;
+  /** Show help message */
   help: boolean;
+  /** Show version number */
   version: boolean;
 }
 
+/**
+ * Custom error class for CLI-related errors.
+ *
+ * Used to distinguish user-facing errors (like invalid arguments)
+ * from unexpected internal errors.
+ */
 export class CliError extends Error {
   constructor(message: string) {
     super(message);
@@ -33,6 +56,9 @@ export class CliError extends Error {
   }
 }
 
+/**
+ * Displays the help message with usage information and available options.
+ */
 export function showHelp(): void {
   console.log(`
 graphts - TypeScript Dependency Graph Analyzer
@@ -61,10 +87,21 @@ Examples:
 `);
 }
 
+/**
+ * Displays the current version of graphts.
+ */
 export function showVersion(): void {
   console.log(`graphts v${VERSION}`);
 }
 
+/**
+ * Parses command-line arguments into a CliOptions object.
+ *
+ * @param args - Array of command-line arguments (typically process.argv.slice(2))
+ * @param defaultRootDir - Default root directory if not specified
+ * @returns Parsed CLI options
+ * @throws CliError if an invalid argument is provided
+ */
 export function parseArgs(args: string[], defaultRootDir?: string): CliOptions {
   const options: CliOptions = {
     rootDir: defaultRootDir ?? process.cwd(),
@@ -156,6 +193,15 @@ export function parseArgs(args: string[], defaultRootDir?: string): CliOptions {
   return options;
 }
 
+/**
+ * Applies environment variable overrides to CLI options.
+ *
+ * Currently supports:
+ * - `PORT` - Overrides the default port (only if port is still default)
+ *
+ * @param options - The parsed CLI options
+ * @returns Options with environment overrides applied
+ */
 export function applyEnvOverrides(options: CliOptions): CliOptions {
   const envPort = process.env['PORT'];
   if (envPort !== undefined && options.port === 3000) {
@@ -167,9 +213,6 @@ export function applyEnvOverrides(options: CliOptions): CliOptions {
   return options;
 }
 
-/**
- * Main CLI entry point
- */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const parsedOptions = parseArgs(args);

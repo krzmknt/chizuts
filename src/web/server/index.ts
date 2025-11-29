@@ -1,7 +1,9 @@
 /**
- * Web server entry point
+ * @fileoverview Web server for the visualization UI.
+ * @module web/server
  *
- * Serves the visualization UI and provides API endpoints.
+ * This module provides a local HTTP server that serves the graph
+ * visualization UI and provides API endpoints for accessing graph data.
  */
 
 import * as http from 'node:http';
@@ -14,35 +16,75 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Options for starting the visualization server
+ * Configuration options for starting the visualization server.
+ *
+ * @example
+ * ```typescript
+ * const options: ServerOptions = {
+ *   graph: dependencyGraph,
+ *   port: 8080,
+ *   open: true,
+ *   watch: true,
+ * };
+ * ```
  */
 export interface ServerOptions {
-  /** Port to listen on (default: 3000) */
+  /**
+   * Port to listen on.
+   * @default 3000
+   */
   readonly port?: number;
-  /** Open browser automatically (default: true) */
+
+  /**
+   * Whether to open the browser automatically.
+   * @default true
+   */
   readonly open?: boolean;
-  /** The dependency graph to visualize */
+
+  /**
+   * The dependency graph to visualize.
+   */
   readonly graph: DependencyGraph;
-  /** Enable watch mode with SSE updates */
+
+  /**
+   * Enable watch mode with Server-Sent Events (SSE) for live updates.
+   */
   readonly watch?: boolean;
-  /** Include patterns for filtering */
+
+  /**
+   * Include patterns for filtering (passed to the UI).
+   */
   readonly include?: readonly string[];
-  /** Exclude patterns for filtering */
+
+  /**
+   * Exclude patterns for filtering (passed to the UI).
+   */
   readonly exclude?: readonly string[];
 }
 
 /**
- * Server instance with update capability
+ * Server instance returned by startServer.
+ *
+ * Provides methods to update the graph and close the server.
  */
 export interface ServerInstance {
-  /** Update the graph and notify connected clients */
+  /**
+   * Updates the graph and notifies all connected SSE clients.
+   *
+   * @param graph - The new dependency graph
+   */
   updateGraph: (graph: DependencyGraph) => void;
-  /** Close the server */
+
+  /**
+   * Closes the server and all SSE connections.
+   *
+   * @returns A promise that resolves when the server is closed
+   */
   close: () => Promise<void>;
 }
 
 /**
- * MIME types for static files
+ * MIME types for static file serving.
  */
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -54,7 +96,31 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 /**
- * Starts a local server for visualizing the dependency graph.
+ * Starts a local HTTP server for visualizing the dependency graph.
+ *
+ * The server provides:
+ * - Static file serving for the visualization UI
+ * - `GET /api/graph` - Returns the current graph as JSON
+ * - `GET /api/config` - Returns include/exclude filter patterns
+ * - `GET /api/events` - SSE endpoint for live updates (watch mode only)
+ *
+ * @param options - Configuration options for the server
+ * @returns A promise that resolves with the server instance
+ *
+ * @example
+ * ```typescript
+ * const server = await startServer({
+ *   graph: dependencyGraph,
+ *   port: 3000,
+ *   watch: true,
+ * });
+ *
+ * // Later, update the graph
+ * server.updateGraph(newGraph);
+ *
+ * // Close when done
+ * await server.close();
+ * ```
  */
 export function startServer(options: ServerOptions): Promise<ServerInstance> {
   const port = options.port ?? 3000;
@@ -184,9 +250,6 @@ export function startServer(options: ServerOptions): Promise<ServerInstance> {
   });
 }
 
-/**
- * Opens the default browser
- */
 function openBrowser(url: string): void {
   const platform = process.platform;
   let command: string;
