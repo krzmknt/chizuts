@@ -33,3 +33,4 @@ temp/
 
 # Local config
 .mcp.json
+.serena/
