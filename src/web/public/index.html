@@ -398,6 +398,20 @@
         border-top: 1px solid #0f3460;
       }
 
+      #pattern-filter {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #0f3460;
+      }
+
+      #pattern-filter h2 {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
       #loading {
         position: fixed;
         top: 50%;
@@ -518,6 +532,71 @@
           <div class="legend-line" style="background: #e91e63"></div>
           implements
         </div>
+      </div>
+
+      <div id="pattern-filter">
+        <h2>Pattern Filter</h2>
+        <div style="margin-bottom: 10px">
+          <label
+            style="
+              font-size: 12px;
+              color: #888;
+              display: block;
+              margin-bottom: 4px;
+            "
+            >Exclude patterns (one per line)</label
+          >
+          <textarea
+            id="exclude-patterns"
+            placeholder="*test*&#10;*.spec.*&#10;__mocks__/*"
+            rows="3"
+            style="
+              width: 100%;
+              background: #0f3460;
+              color: #eee;
+              border: 1px solid #1a1a2e;
+              border-radius: 4px;
+              padding: 8px;
+              font-size: 12px;
+              font-family: monospace;
+              resize: vertical;
+            "
+          ></textarea>
+        </div>
+        <div style="margin-bottom: 10px">
+          <label
+            style="
+              font-size: 12px;
+              color: #888;
+              display: block;
+              margin-bottom: 4px;
+            "
+            >Include patterns (empty = all)</label
+          >
+          <textarea
+            id="include-patterns"
+            placeholder="src/*&#10;*.ts"
+            rows="2"
+            style="
+              width: 100%;
+              background: #0f3460;
+              color: #eee;
+              border: 1px solid #1a1a2e;
+              border-radius: 4px;
+              padding: 8px;
+              font-size: 12px;
+              font-family: monospace;
+              resize: vertical;
+            "
+          ></textarea>
+        </div>
+        <button id="apply-pattern-filter" style="width: 100%">
+          Apply Filter
+        </button>
+        <div
+          id="filter-stats"
+          style="font-size: 11px; color: #888; margin-top: 8px"
+        ></div>
       </div>
     </div>
 
@@ -652,6 +731,33 @@
         }
 
         return tree;
+      }
+
+      // Convert glob pattern to regex
+      function globToRegex(glob) {
+        // Escape special regex characters except * and ?
+        let regex = glob
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          // Convert ** to match anything including /
+          .replace(/\*\*/g, '.*')
+          // Convert * to match anything except /
+          .replace(/\*/g, '[^/]*')
+          // Convert ? to match single character
+          .replace(/\?/g, '.');
+        return new RegExp(regex, 'i');
+      }
+
+      // Check if a path matches any of the patterns
+      function matchesPatterns(path, patterns) {
+        if (!patterns || patterns.length === 0) return false;
+        return patterns.some((pattern) => {
+          try {
+            const regex = globToRegex(pattern);
+            return regex.test(path);
+          } catch (e) {
+            return false;
+          }
+        });
       }
 
       // Symbol type icons
@@ -915,11 +1021,14 @@
           });
         }
 
-        // Add edges
+        // Add edges - build a Set of node IDs for O(1) lookup
+        const nodeIdSet = new Set(graph.nodes.map((n) => n.id));
+        let skippedEdges = 0;
+
         for (const edge of graph.edges) {
           // Only add edge if both source and target exist
-          const sourceExists = graph.nodes.some((n) => n.id === edge.source);
-          const targetExists = graph.nodes.some((n) => n.id === edge.target);
+          const sourceExists = nodeIdSet.has(edge.source);
+          const targetExists = nodeIdSet.has(edge.target);
 
           if (sourceExists && targetExists) {
             elements.push({
@@ -930,14 +1039,55 @@
                 type: edge.type,
               },
             });
+          } else {
+            skippedEdges++;
           }
         }
 
+        if (skippedEdges > 0) {
+          console.log('[graphts] Skipped', skippedEdges, 'edges with missing nodes');
+        }
+
         // Initialize Cytoscape
-        cy = cytoscape({
-          container: document.getElementById('cy'),
-          elements,
-          style: [
+        console.log('[graphts] Initializing Cytoscape with', elements.length, 'elements');
+        console.log('[graphts] Nodes:', graph.nodes.length, '| Valid edges:', elements.length - graph.nodes.length);
+
+        // Verify all edges reference existing nodes in elements
+        const nodeElements = elements.filter(e => !e.data.source);
+        const elementNodeIds = new Set(nodeElements.map(e => e.data.id));
+        const edgeElements = elements.filter(e => e.data.source);
+        const orphanEdges = edgeElements.filter(e =>
+          !elementNodeIds.has(e.data.source) || !elementNodeIds.has(e.data.target)
+        );
+        if (orphanEdges.length > 0) {
+          console.error('[graphts] Still have orphan edges after filtering:', orphanEdges.length);
+          orphanEdges.slice(0, 3).forEach(e => {
+            console.error('  Edge:', e.data.source, '->', e.data.target);
+          });
+          // Remove orphan edges from elements
+          const validEdges = edgeElements.filter(e =>
+            elementNodeIds.has(e.data.source) && elementNodeIds.has(e.data.target)
+          );
+          elements.length = 0;
+          elements.push(...nodeElements, ...validEdges);
+          console.log('[graphts] After cleanup:', elements.length, 'elements');
+        }
+
+        // Try to initialize with dagre layout, fall back to cose if it fails
+        let layoutName = 'dagre';
+        let layoutOptions = {
+          name: 'dagre',
+          rankDir: 'TB',
+          nodeSep: 50,
+          rankSep: 80,
+          animate: false,
+        };
+
+        try {
+          cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements,
+            style: [
             {
               selector: 'node',
               style: {
@@ -1006,15 +1156,47 @@
               },
             },
           ],
-          layout: {
-            name: 'dagre',
-            rankDir: 'TB',
-            nodeSep: 50,
-            rankSep: 80,
-            animate: false,
-          },
+          layout: layoutOptions,
           wheelSensitivity: 0.3,
         });
+        } catch (e) {
+          console.warn('[graphts] Dagre layout failed, falling back to cose:', e.message);
+          layoutName = 'cose';
+          layoutOptions = { name: 'cose', animate: false };
+          cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements,
+            style: [
+              {
+                selector: 'node',
+                style: {
+                  label: 'data(label)',
+                  'background-color': (ele) => NODE_COLORS[ele.data('type')] || '#888',
+                  color: '#fff',
+                  'text-valign': 'bottom',
+                  'text-halign': 'center',
+                  'font-size': 10,
+                  width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                },
+              },
+              {
+                selector: 'edge',
+                style: {
+                  width: 1,
+                  'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-shape': 'triangle',
+                  'curve-style': 'bezier',
+                  opacity: 0.6,
+                },
+              },
+              { selector: '.hidden', style: { display: 'none' } },
+            ],
+            layout: layoutOptions,
+            wheelSensitivity: 0.3,
+          });
+        }
 
         // Node click handler
         cy.on('tap', 'node', (evt) => {
@@ -1022,9 +1204,20 @@
           showNodeInfo(node.data());
         });
 
-        // Setup controls and search
+        // Setup controls, search, and pattern filter
         setupControls();
         setupSearch();
+
+        // Fetch filter config and setup pattern filter
+        try {
+          const configResponse = await fetch('/api/config');
+          const config = await configResponse.json();
+          console.log('[graphts] Fetched config:', config);
+          setupPatternFilter(config);
+        } catch (err) {
+          console.error('[graphts] Failed to fetch config:', err);
+          setupPatternFilter({});
+        }
       }
 
       function showNodeInfo(data) {
@@ -1133,6 +1326,109 @@
               });
             });
           });
+      }
+
+      function setupPatternFilter(config = {}) {
+        console.log('[graphts] setupPatternFilter called with config:', config);
+
+        const applyBtn = document.getElementById('apply-pattern-filter');
+        const excludeInput = document.getElementById('exclude-patterns');
+        const includeInput = document.getElementById('include-patterns');
+        const filterStats = document.getElementById('filter-stats');
+
+        if (!excludeInput || !includeInput || !applyBtn || !filterStats) {
+          console.error('[graphts] Filter elements not found!', {
+            applyBtn: !!applyBtn,
+            excludeInput: !!excludeInput,
+            includeInput: !!includeInput,
+            filterStats: !!filterStats,
+          });
+          return;
+        }
+
+        // Set default values from CLI config
+        if (config.exclude && config.exclude.length > 0) {
+          excludeInput.value = config.exclude.join('\n');
+          console.log('[graphts] Set exclude patterns:', config.exclude);
+        }
+        if (config.include && config.include.length > 0) {
+          includeInput.value = config.include.join('\n');
+          console.log('[graphts] Set include patterns:', config.include);
+        }
+
+        const applyFilter = () => {
+          console.log('[graphts] applyFilter called');
+          console.log('[graphts] excludeInput.value:', JSON.stringify(excludeInput.value));
+          console.log('[graphts] includeInput.value:', JSON.stringify(includeInput.value));
+
+          // Parse patterns from textareas
+          const excludePatterns = excludeInput.value
+            .split('\n')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+          const includePatterns = includeInput.value
+            .split('\n')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+
+          console.log('[graphts] excludePatterns:', excludePatterns);
+          console.log('[graphts] includePatterns:', includePatterns);
+          console.log('[graphts] cy.nodes() count:', cy.nodes().length);
+
+          let hiddenCount = 0;
+          let shownCount = 0;
+
+          cy.nodes().forEach((node) => {
+            const filePath = node.data('filePath') || node.data('label') || '';
+            const label = node.data('label') || '';
+
+            // Check path against patterns (check both filePath and label)
+            const pathToCheck = filePath || label;
+
+            let shouldHide = false;
+
+            // If include patterns exist, only show matching nodes
+            if (includePatterns.length > 0) {
+              if (!matchesPatterns(pathToCheck, includePatterns)) {
+                shouldHide = true;
+              }
+            }
+
+            // If exclude patterns exist and node wasn't already hidden, check exclusion
+            if (!shouldHide && excludePatterns.length > 0) {
+              if (matchesPatterns(pathToCheck, excludePatterns)) {
+                shouldHide = true;
+              }
+            }
+
+            if (shouldHide) {
+              node.addClass('hidden');
+              hiddenCount++;
+            } else {
+              node.removeClass('hidden');
+              shownCount++;
+            }
+          });
+
+          // Update filter stats
+          if (excludePatterns.length > 0 || includePatterns.length > 0) {
+            filterStats.textContent = `Showing ${shownCount} nodes, ${hiddenCount} hidden`;
+          } else {
+            filterStats.textContent = 'All nodes visible';
+          }
+          console.log('[graphts] Filter applied:', { shownCount, hiddenCount });
+        };
+
+        applyBtn.addEventListener('click', applyFilter);
+
+        // Auto-apply if patterns are provided from CLI
+        if (
+          (config.exclude && config.exclude.length > 0) ||
+          (config.include && config.include.length > 0)
+        ) {
+          console.log('[graphts] Auto-applying filter from CLI config');
+          applyFilter();
+        }
       }
 
       // Connect to SSE for watch mode updates

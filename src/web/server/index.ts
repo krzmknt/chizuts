@@ -25,6 +25,10 @@ export interface ServerOptions {
   readonly graph: DependencyGraph;
   /** Enable watch mode with SSE updates */
   readonly watch?: boolean;
+  /** Include patterns for filtering */
+  readonly include?: readonly string[];
+  /** Exclude patterns for filtering */
+  readonly exclude?: readonly string[];
 }
 
 /**
@@ -69,6 +73,18 @@ export function startServer(options: ServerOptions): Promise<ServerInstance> {
       if (url === '/api/graph') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(currentGraph));
+        return;
+      }
+
+      // API endpoint for filter config
+      if (url === '/api/config') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            include: options.include ?? [],
+            exclude: options.exclude ?? [],
+          })
+        );
         return;
       }
 

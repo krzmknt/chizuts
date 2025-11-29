@@ -37,6 +37,21 @@ export class TypeScriptParserAdapter implements IParser {
       parsedConfig.options
     );
 
+    // First pass: Collect re-export mappings from all files
+    const reexportMap = new Map<string, string>(); // maps re-export id -> original id
+
+    for (const filePath of filePaths) {
+      const sourceFile = program.getSourceFile(filePath);
+      if (!sourceFile) {
+        continue;
+      }
+      this.collectReexports(sourceFile, options.rootDir, reexportMap);
+    }
+
+    // Build fully resolved re-export map (follow chains)
+    const resolvedReexportMap = this.resolveReexportChains(reexportMap);
+
+    // Second pass: Parse files with resolved re-exports
     const results: ParsedFile[] = [];
 
     for (const filePath of filePaths) {
@@ -45,7 +60,11 @@ export class TypeScriptParserAdapter implements IParser {
         continue;
       }
 
-      const parsed = this.parseSourceFile(sourceFile, options.rootDir);
+      const parsed = this.parseSourceFile(
+        sourceFile,
+        options.rootDir,
+        resolvedReexportMap
+      );
       results.push(parsed);
     }
 
@@ -53,11 +72,84 @@ export class TypeScriptParserAdapter implements IParser {
   }
 
   /**
+   * Collects re-export mappings from a source file
+   * Maps: moduleId#symbol -> targetModuleId#originalSymbol
+   */
+  private collectReexports(
+    sourceFile: ts.SourceFile,
+    rootDir: string,
+    reexportMap: Map<string, string>
+  ): void {
+    const filePath = sourceFile.fileName;
+    const relativeFilePath = path.relative(rootDir, filePath);
+    const moduleId = this.createModuleId(relativeFilePath);
+
+    const visit = (node: ts.Node): void => {
+      if (ts.isExportDeclaration(node)) {
+        const moduleSpecifier = node.moduleSpecifier;
+        if (moduleSpecifier && ts.isStringLiteral(moduleSpecifier)) {
+          const exportPath = moduleSpecifier.text;
+          const resolvedPath = this.resolveImportPath(
+            exportPath,
+            filePath,
+            rootDir
+          );
+          const targetModuleId = this.createModuleId(resolvedPath);
+
+          // Handle named exports: export { Foo, Bar } from './module'
+          if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+            for (const element of node.exportClause.elements) {
+              const originalName =
+                element.propertyName?.text || element.name.text;
+              const exportedName = element.name.text;
+
+              // Map this module's export to the target module's symbol
+              reexportMap.set(
+                `${moduleId}#${exportedName}`,
+                `${targetModuleId}#${originalName}`
+              );
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+  }
+
+  /**
+   * Resolves re-export chains to find the original source
+   * e.g., A#X -> B#X -> C#X becomes A#X -> C#X
+   */
+  private resolveReexportChains(
+    reexportMap: Map<string, string>
+  ): Map<string, string> {
+    const resolved = new Map<string, string>();
+
+    for (const [source, target] of reexportMap) {
+      let current = target;
+      const visited = new Set<string>([source]);
+
+      // Follow the chain until we find a non-reexport target
+      while (reexportMap.has(current) && !visited.has(current)) {
+        visited.add(current);
+        current = reexportMap.get(current)!;
+      }
+
+      resolved.set(source, current);
+    }
+
+    return resolved;
+  }
+
+  /**
    * Parses a single source file and extracts nodes and edges
    */
   private parseSourceFile(
     sourceFile: ts.SourceFile,
-    rootDir: string
+    rootDir: string,
+    reexportMap: Map<string, string>
   ): ParsedFile {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -84,10 +176,17 @@ export class TypeScriptParserAdapter implements IParser {
     const visit = (node: ts.Node): void => {
       // Import declarations
       if (ts.isImportDeclaration(node)) {
-        this.processImport(node, moduleId, filePath, rootDir, edges);
+        this.processImport(
+          node,
+          moduleId,
+          filePath,
+          rootDir,
+          reexportMap,
+          edges
+        );
       }
 
-      // Export declarations
+      // Export declarations (re-exports) - only create module-level edge for namespace exports
       if (ts.isExportDeclaration(node)) {
         this.processExport(node, moduleId, filePath, rootDir, edges);
       }
@@ -303,6 +402,7 @@ export class TypeScriptParserAdapter implements IParser {
     moduleId: string,
     filePath: string,
     rootDir: string,
+    reexportMap: Map<string, string>,
     edges: Edge[]
   ): void {
     const moduleSpecifier = node.moduleSpecifier;
@@ -313,6 +413,11 @@ export class TypeScriptParserAdapter implements IParser {
     const importPath = moduleSpecifier.text;
     const resolvedPath = this.resolveImportPath(importPath, filePath, rootDir);
     const targetModuleId = this.createModuleId(resolvedPath);
+
+    // Helper to resolve symbol through re-export chain
+    const resolveTarget = (symbolTarget: string): string => {
+      return reexportMap.get(symbolTarget) ?? symbolTarget;
+    };
 
     // Get imported bindings
     const importClause = node.importClause;
@@ -328,11 +433,14 @@ export class TypeScriptParserAdapter implements IParser {
           const originalName = element.propertyName?.text || element.name.text;
           importedSymbols.push(originalName);
 
-          // Create edge to the specific imported symbol
+          // Create edge to the resolved target (through re-exports)
+          const directTarget = `${targetModuleId}#${originalName}`;
+          const resolvedTarget = resolveTarget(directTarget);
+
           edges.push(
             createEdge({
               source: moduleId,
-              target: `${targetModuleId}#${originalName}`,
+              target: resolvedTarget,
               type: 'import',
               metadata: { importPath, symbol: originalName },
             })
@@ -363,10 +471,13 @@ export class TypeScriptParserAdapter implements IParser {
       // Default import: import Foo from '...'
       if (importClause.name) {
         importedSymbols.push('default');
+        const directTarget = `${targetModuleId}#default`;
+        const resolvedTarget = resolveTarget(directTarget);
+
         edges.push(
           createEdge({
             source: moduleId,
-            target: `${targetModuleId}#default`,
+            target: resolvedTarget,
             type: 'import',
             metadata: { importPath, symbol: 'default' },
           })
@@ -406,14 +517,18 @@ export class TypeScriptParserAdapter implements IParser {
     const resolvedPath = this.resolveImportPath(exportPath, filePath, rootDir);
     const targetModuleId = this.createModuleId(resolvedPath);
 
-    edges.push(
-      createEdge({
-        source: moduleId,
-        target: targetModuleId,
-        type: 'export',
-        metadata: { exportPath },
-      })
-    );
+    // Only create module-level edge for namespace re-exports (export * from)
+    // Named re-exports are handled via reexportMap in processImport
+    if (!node.exportClause) {
+      edges.push(
+        createEdge({
+          source: moduleId,
+          target: targetModuleId,
+          type: 'export',
+          metadata: { exportPath, namespaceReexport: true },
+        })
+      );
+    }
   }
 
   /**
