@@ -22,8 +22,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest --coverage --run",
-    "check": "pnpm format && pnpm build && pnpm lint && pnpm test:coverage",
-    "prepublishOnly": "npm run build"
+    "check": "pnpm format && pnpm format:check && pnpm build && pnpm lint && pnpm test:coverage",
+    "prepublishOnly": "npm run build",
+    "prepare": "husky"
   },
   "keywords": [
     "typescript",
@@ -63,6 +64,7 @@
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.7",
     "prettier": "^3.4.1",
     "vitest": "^2.1.6"
   }
