@@ -1045,28 +1045,48 @@
         }
 
         if (skippedEdges > 0) {
-          console.log('[graphts] Skipped', skippedEdges, 'edges with missing nodes');
+          console.log(
+            '[graphts] Skipped',
+            skippedEdges,
+            'edges with missing nodes'
+          );
         }
 
         // Initialize Cytoscape
-        console.log('[graphts] Initializing Cytoscape with', elements.length, 'elements');
-        console.log('[graphts] Nodes:', graph.nodes.length, '| Valid edges:', elements.length - graph.nodes.length);
+        console.log(
+          '[graphts] Initializing Cytoscape with',
+          elements.length,
+          'elements'
+        );
+        console.log(
+          '[graphts] Nodes:',
+          graph.nodes.length,
+          '| Valid edges:',
+          elements.length - graph.nodes.length
+        );
 
         // Verify all edges reference existing nodes in elements
-        const nodeElements = elements.filter(e => !e.data.source);
-        const elementNodeIds = new Set(nodeElements.map(e => e.data.id));
-        const edgeElements = elements.filter(e => e.data.source);
-        const orphanEdges = edgeElements.filter(e =>
-          !elementNodeIds.has(e.data.source) || !elementNodeIds.has(e.data.target)
+        const nodeElements = elements.filter((e) => !e.data.source);
+        const elementNodeIds = new Set(nodeElements.map((e) => e.data.id));
+        const edgeElements = elements.filter((e) => e.data.source);
+        const orphanEdges = edgeElements.filter(
+          (e) =>
+            !elementNodeIds.has(e.data.source) ||
+            !elementNodeIds.has(e.data.target)
         );
         if (orphanEdges.length > 0) {
-          console.error('[graphts] Still have orphan edges after filtering:', orphanEdges.length);
-          orphanEdges.slice(0, 3).forEach(e => {
+          console.error(
+            '[graphts] Still have orphan edges after filtering:',
+            orphanEdges.length
+          );
+          orphanEdges.slice(0, 3).forEach((e) => {
             console.error('  Edge:', e.data.source, '->', e.data.target);
           });
           // Remove orphan edges from elements
-          const validEdges = edgeElements.filter(e =>
-            elementNodeIds.has(e.data.source) && elementNodeIds.has(e.data.target)
+          const validEdges = edgeElements.filter(
+            (e) =>
+              elementNodeIds.has(e.data.source) &&
+              elementNodeIds.has(e.data.target)
           );
           elements.length = 0;
           elements.push(...nodeElements, ...validEdges);
@@ -1088,79 +1108,83 @@
             container: document.getElementById('cy'),
             elements,
             style: [
-            {
-              selector: 'node',
-              style: {
-                label: 'data(label)',
-                'background-color': (ele) =>
-                  NODE_COLORS[ele.data('type')] || '#888',
-                color: '#fff',
-                'text-valign': 'bottom',
-                'text-halign': 'center',
-                'text-margin-y': 5,
-                'font-size': 10,
-                width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
-                height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
-                'border-width': 2,
-                'border-color': '#1a1a2e',
-                'text-outline-width': 1,
-                'text-outline-color': '#1a1a2e',
-                // Icon inside node using background
-                'background-image': (ele) => {
-                  const icon = ele.data('icon') || '•';
-                  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${icon}</text></svg>`;
-                  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+              {
+                selector: 'node',
+                style: {
+                  label: 'data(label)',
+                  'background-color': (ele) =>
+                    NODE_COLORS[ele.data('type')] || '#888',
+                  color: '#fff',
+                  'text-valign': 'bottom',
+                  'text-halign': 'center',
+                  'text-margin-y': 5,
+                  'font-size': 10,
+                  width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  'border-width': 2,
+                  'border-color': '#1a1a2e',
+                  'text-outline-width': 1,
+                  'text-outline-color': '#1a1a2e',
+                  // Icon inside node using background
+                  'background-image': (ele) => {
+                    const icon = ele.data('icon') || '•';
+                    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${icon}</text></svg>`;
+                    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+                  },
+                  'background-fit': 'contain',
+                  'background-clip': 'none',
                 },
-                'background-fit': 'contain',
-                'background-clip': 'none',
               },
-            },
-            {
-              selector: 'node:selected',
-              style: {
-                'border-width': 3,
-                'border-color': '#e94560',
+              {
+                selector: 'node:selected',
+                style: {
+                  'border-width': 3,
+                  'border-color': '#e94560',
+                },
               },
-            },
-            {
-              selector: 'edge',
-              style: {
-                width: 1,
-                'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
-                'target-arrow-color': (ele) =>
-                  EDGE_COLORS[ele.data('type')] || '#666',
-                'target-arrow-shape': 'triangle',
-                'curve-style': 'bezier',
-                opacity: 0.6,
+              {
+                selector: 'edge',
+                style: {
+                  width: 1,
+                  'line-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-shape': 'triangle',
+                  'curve-style': 'bezier',
+                  opacity: 0.6,
+                },
               },
-            },
-            {
-              selector: 'edge:selected',
-              style: {
-                width: 2,
-                opacity: 1,
+              {
+                selector: 'edge:selected',
+                style: {
+                  width: 2,
+                  opacity: 1,
+                },
               },
-            },
-            {
-              selector: '.hidden',
-              style: {
-                display: 'none',
+              {
+                selector: '.hidden',
+                style: {
+                  display: 'none',
+                },
               },
-            },
-            {
-              selector: '.highlighted',
-              style: {
-                'border-width': 4,
-                'border-color': '#e94560',
-                'border-style': 'double',
+              {
+                selector: '.highlighted',
+                style: {
+                  'border-width': 4,
+                  'border-color': '#e94560',
+                  'border-style': 'double',
+                },
               },
-            },
-          ],
-          layout: layoutOptions,
-          wheelSensitivity: 0.3,
-        });
+            ],
+            layout: layoutOptions,
+            wheelSensitivity: 0.3,
+          });
         } catch (e) {
-          console.warn('[graphts] Dagre layout failed, falling back to cose:', e.message);
+          console.warn(
+            '[graphts] Dagre layout failed, falling back to cose:',
+            e.message
+          );
           layoutName = 'cose';
           layoutOptions = { name: 'cose', animate: false };
           cy = cytoscape({
@@ -1171,7 +1195,8 @@
                 selector: 'node',
                 style: {
                   label: 'data(label)',
-                  'background-color': (ele) => NODE_COLORS[ele.data('type')] || '#888',
+                  'background-color': (ele) =>
+                    NODE_COLORS[ele.data('type')] || '#888',
                   color: '#fff',
                   'text-valign': 'bottom',
                   'text-halign': 'center',
@@ -1184,8 +1209,10 @@
                 selector: 'edge',
                 style: {
                   width: 1,
-                  'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
-                  'target-arrow-color': (ele) => EDGE_COLORS[ele.data('type')] || '#666',
+                  'line-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
+                  'target-arrow-color': (ele) =>
+                    EDGE_COLORS[ele.data('type')] || '#666',
                   'target-arrow-shape': 'triangle',
                   'curve-style': 'bezier',
                   opacity: 0.6,
@@ -1358,8 +1385,14 @@
 
         const applyFilter = () => {
           console.log('[graphts] applyFilter called');
-          console.log('[graphts] excludeInput.value:', JSON.stringify(excludeInput.value));
-          console.log('[graphts] includeInput.value:', JSON.stringify(includeInput.value));
+          console.log(
+            '[graphts] excludeInput.value:',
+            JSON.stringify(excludeInput.value)
+          );
+          console.log(
+            '[graphts] includeInput.value:',
+            JSON.stringify(includeInput.value)
+          );
 
           // Parse patterns from textareas
           const excludePatterns = excludeInput.value
