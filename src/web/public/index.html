@@ -40,7 +40,7 @@
       #header h1 {
         font-size: 18px;
         font-weight: 600;
-        color: #e94560;
+        color: #22d3ee;
       }
 
       #stats {
@@ -66,7 +66,8 @@
       }
 
       button:hover {
-        background: #e94560;
+        background: #22d3ee;
+        color: #1a1a2e;
       }
 
       select {
@@ -89,6 +90,94 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        transition:
+          width 0.3s,
+          transform 0.3s;
+      }
+
+      #left-sidebar.collapsed {
+        width: 0;
+        transform: translateX(-280px);
+      }
+
+      .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 15px;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #0f3460;
+        background: #16213e;
+      }
+
+      .sidebar-header h3 {
+        margin: 0;
+        font-size: 12px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .close-btn {
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        padding: 0;
+        border-radius: 2px;
+      }
+
+      .close-btn:hover {
+        color: #22d3ee;
+        background: rgba(34, 211, 238, 0.1);
+      }
+
+      .expand-tab {
+        position: fixed;
+        top: 58px;
+        padding: 6px 8px;
+        background: #16213e;
+        border: 1px solid #0f3460;
+        color: #888;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        z-index: 101;
+      }
+
+      .expand-tab:hover {
+        color: #22d3ee;
+        background: #0f3460;
+      }
+
+      #left-expand {
+        left: 0;
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+
+      #right-expand {
+        right: 0;
+        border-right: none;
+        border-radius: 4px 0 0 4px;
+      }
+
+      body.left-collapsed #left-expand {
+        display: flex;
+      }
+
+      body.right-collapsed #right-expand {
+        display: flex;
       }
 
       #search-container {
@@ -109,7 +198,7 @@
       }
 
       #search-input:focus {
-        border-color: #e94560;
+        border-color: #22d3ee;
       }
 
       #search-input::placeholder {
@@ -143,11 +232,11 @@
       }
 
       .tree-item.selected {
-        background: #e94560;
+        background: #0891b2;
       }
 
       .tree-item.match {
-        background: rgba(233, 69, 96, 0.3);
+        background: rgba(34, 211, 238, 0.3);
       }
 
       .tree-folder {
@@ -246,6 +335,17 @@
         left: 280px;
         right: 300px;
         bottom: 0;
+        transition:
+          left 0.3s,
+          right 0.3s;
+      }
+
+      body.left-collapsed #cy {
+        left: 0;
+      }
+
+      body.right-collapsed #cy {
+        right: 0;
       }
 
       #sidebar {
@@ -256,13 +356,32 @@
         bottom: 0;
         background: #16213e;
         border-left: 1px solid #0f3460;
-        padding: 20px;
         overflow-y: auto;
+        transition:
+          width 0.3s,
+          transform 0.3s;
+      }
+
+      #sidebar.collapsed {
+        width: 0;
+        transform: translateX(300px);
+        overflow: hidden;
+      }
+
+      #sidebar > h2,
+      #sidebar > #node-info,
+      #sidebar > #legend,
+      #sidebar > #edge-legend,
+      #sidebar > #orphan-filter,
+      #sidebar > #pattern-filter {
+        padding-left: 20px;
+        padding-right: 20px;
       }
 
       #sidebar h2 {
         font-size: 14px;
         color: #888;
+        margin-top: 15px;
         margin-bottom: 10px;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -274,7 +393,7 @@
       }
 
       #node-info .label {
-        color: #e94560;
+        color: #22d3ee;
         font-size: 16px;
         font-weight: 600;
         margin-bottom: 10px;
@@ -289,27 +408,7 @@
         margin-bottom: 15px;
       }
 
-      #node-info .type.module {
-        background: #3498db;
-      }
-      #node-info .type.function {
-        background: #2ecc71;
-      }
-      #node-info .type.class {
-        background: #9b59b6;
-      }
-      #node-info .type.variable {
-        background: #f39c12;
-      }
-      #node-info .type.component {
-        background: #e74c3c;
-      }
-      #node-info .type.interface {
-        background: #1abc9c;
-      }
-      #node-info .type.type {
-        background: #e67e22;
-      }
+      /* TYPE badge colors are set dynamically from NODE_COLORS in JavaScript */
 
       #node-info .path {
         color: #888;
@@ -376,7 +475,8 @@
         opacity: 0.4;
       }
 
-      .legend-item.clickable.inactive .legend-color {
+      .legend-item.clickable.inactive .legend-color,
+      .legend-item.clickable.inactive .legend-line {
         background: #555 !important;
       }
 
@@ -428,9 +528,12 @@
       <span id="stats">Loading...</span>
       <div id="controls">
         <select id="layout">
-          <option value="dagre">Hierarchical (dagre)</option>
-          <option value="cose">Force-directed (cose)</option>
+          <option value="dagre">Hierarchical (TB)</option>
+          <option value="dagre-lr">Hierarchical (LR)</option>
+          <option value="dagre-compact">Hierarchical (Compact)</option>
+          <option value="cose">Force-directed</option>
           <option value="breadthfirst">Breadthfirst</option>
+          <option value="concentric">Concentric</option>
           <option value="circle">Circle</option>
           <option value="grid">Grid</option>
         </select>
@@ -439,7 +542,20 @@
       </div>
     </div>
 
+    <button id="left-expand" class="expand-tab" title="Show file tree">
+      FILES
+    </button>
+    <button id="right-expand" class="expand-tab" title="Show details">
+      DETAILS
+    </button>
+
     <div id="left-sidebar">
+      <div class="sidebar-header">
+        <h3>Files</h3>
+        <button id="left-close" class="close-btn" title="Hide file tree">
+          &times;
+        </button>
+      </div>
       <div id="search-container">
         <input
           type="text"
@@ -457,6 +573,12 @@
     <div id="cy"></div>
 
     <div id="sidebar">
+      <div class="sidebar-header">
+        <h3>Details</h3>
+        <button id="right-close" class="close-btn" title="Hide details">
+          &times;
+        </button>
+      </div>
       <h2>Node Details</h2>
       <div id="node-info">
         <p style="color: #666">Click a node to see details</p>
@@ -508,30 +630,62 @@
 
       <div id="edge-legend">
         <h2>Edges</h2>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-edge-type="import">
           <div class="legend-line" style="background: #3498db"></div>
           import
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-edge-type="defines">
           <div class="legend-line" style="background: #7f8c8d"></div>
           defines
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-edge-type="call">
           <div class="legend-line" style="background: #e74c3c"></div>
           call
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-edge-type="reference">
           <div class="legend-line" style="background: #f39c12"></div>
           reference
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-edge-type="extends">
           <div class="legend-line" style="background: #9b59b6"></div>
           extends
         </div>
-        <div class="legend-item">
+        <div class="legend-item clickable" data-edge-type="implements">
           <div class="legend-line" style="background: #e91e63"></div>
           implements
         </div>
+      </div>
+
+      <div
+        id="orphan-filter"
+        style="
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #0f3460;
+        "
+      >
+        <h2>Display Options</h2>
+        <label
+          style="
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+            cursor: pointer;
+            font-size: 13px;
+          "
+        >
+          <input
+            type="checkbox"
+            id="hide-orphans"
+            style="width: 16px; height: 16px"
+          />
+          Hide orphan nodes (no connections)
+        </label>
+        <div
+          id="orphan-stats"
+          style="font-size: 11px; color: #888; margin-top: 4px"
+        ></div>
       </div>
 
       <div id="pattern-filter">
@@ -886,8 +1040,8 @@
         }
       }
 
-      // Focus on a node in the graph
-      function focusNode(nodeId) {
+      // Focus on a node in the graph and expand tree to show it
+      function focusNode(nodeId, fromGraph = false) {
         const node = cy.getElementById(nodeId);
         if (node.length > 0) {
           // Clear previous selection
@@ -904,10 +1058,29 @@
             duration: 300,
           });
 
-          // Highlight in tree
+          // Highlight in tree and expand parents
           const treeItem = document.querySelector(`[data-node-id="${nodeId}"]`);
           if (treeItem) {
             treeItem.classList.add('selected');
+
+            // Expand all parent folders/files to make this visible
+            let parent = treeItem.parentElement;
+            while (parent) {
+              if (parent.classList.contains('tree-children')) {
+                parent.classList.add('open');
+                const prevSibling = parent.previousElementSibling;
+                if (
+                  prevSibling &&
+                  prevSibling.classList.contains('tree-item')
+                ) {
+                  prevSibling.classList.add('open');
+                }
+              }
+              parent = parent.parentElement;
+            }
+
+            // Scroll tree item into view
+            treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
 
           // Show node info
@@ -1098,8 +1271,9 @@
         let layoutOptions = {
           name: 'dagre',
           rankDir: 'TB',
-          nodeSep: 50,
-          rankSep: 80,
+          nodeSep: 30,
+          rankSep: 100,
+          edgeSep: 10,
           animate: false,
         };
 
@@ -1139,7 +1313,7 @@
                 selector: 'node:selected',
                 style: {
                   'border-width': 3,
-                  'border-color': '#e94560',
+                  'border-color': '#22d3ee',
                 },
               },
               {
@@ -1172,7 +1346,7 @@
                 selector: '.highlighted',
                 style: {
                   'border-width': 4,
-                  'border-color': '#e94560',
+                  'border-color': '#22d3ee',
                   'border-style': 'double',
                 },
               },
@@ -1225,10 +1399,10 @@
           });
         }
 
-        // Node click handler
+        // Node click handler - also expand tree to show selected node
         cy.on('tap', 'node', (evt) => {
           const node = evt.target;
-          showNodeInfo(node.data());
+          focusNode(node.id(), true);
         });
 
         // Setup controls, search, and pattern filter
@@ -1245,6 +1419,10 @@
           console.error('[graphts] Failed to fetch config:', err);
           setupPatternFilter({});
         }
+
+        // Setup sidebar toggles and orphan filter
+        setupSidebarToggles();
+        setupOrphanFilter();
       }
 
       function showNodeInfo(data) {
@@ -1282,9 +1460,12 @@
           `;
         }
 
+        // Use NODE_COLORS directly to ensure badge color matches node color
+        const badgeColor = NODE_COLORS[data.type] || '#888';
+
         info.innerHTML = `
           <div class="label">${escapeHtml(data.label)}</div>
-          <div class="type ${data.type}">${data.type}</div>
+          <div class="type" style="background: ${badgeColor};">${data.type}</div>
           <div class="path">${escapeHtml(data.filePath)}</div>
           <div class="location">Line ${data.line}, Column ${data.column}</div>
           ${tsdocHtml}
@@ -1301,17 +1482,43 @@
       function setupControls() {
         // Layout selector
         document.getElementById('layout').addEventListener('change', (e) => {
-          const layoutName = e.target.value;
+          const layoutValue = e.target.value;
           const layoutOptions = {
-            name: layoutName,
             animate: true,
             animationDuration: 500,
           };
 
-          if (layoutName === 'dagre') {
+          // Configure layout based on selection
+          if (layoutValue === 'dagre') {
+            layoutOptions.name = 'dagre';
             layoutOptions.rankDir = 'TB';
-            layoutOptions.nodeSep = 50;
-            layoutOptions.rankSep = 80;
+            layoutOptions.nodeSep = 30;
+            layoutOptions.rankSep = 100;
+            layoutOptions.edgeSep = 10;
+          } else if (layoutValue === 'dagre-lr') {
+            layoutOptions.name = 'dagre';
+            layoutOptions.rankDir = 'LR';
+            layoutOptions.nodeSep = 30;
+            layoutOptions.rankSep = 100;
+            layoutOptions.edgeSep = 10;
+          } else if (layoutValue === 'dagre-compact') {
+            layoutOptions.name = 'dagre';
+            layoutOptions.rankDir = 'TB';
+            layoutOptions.nodeSep = 15;
+            layoutOptions.rankSep = 50;
+            layoutOptions.edgeSep = 5;
+          } else if (layoutValue === 'concentric') {
+            layoutOptions.name = 'concentric';
+            layoutOptions.concentric = (node) => node.degree();
+            layoutOptions.levelWidth = () => 2;
+            layoutOptions.minNodeSpacing = 50;
+          } else if (layoutValue === 'cose') {
+            layoutOptions.name = 'cose';
+            layoutOptions.nodeRepulsion = 8000;
+            layoutOptions.idealEdgeLength = 100;
+            layoutOptions.edgeElasticity = 100;
+          } else {
+            layoutOptions.name = layoutValue;
           }
 
           cy.layout(layoutOptions).run();
@@ -1331,7 +1538,7 @@
           link.click();
         });
 
-        // Type filters via clickable legend items
+        // Type filters via clickable legend items (nodes)
         document
           .querySelectorAll('#legend .legend-item.clickable')
           .forEach((item) => {
@@ -1351,8 +1558,79 @@
                   }
                 }
               });
+
+              // Update orphan filter if active
+              updateOrphanVisibility();
             });
           });
+
+        // Edge type filters via clickable legend items
+        document
+          .querySelectorAll('#edge-legend .legend-item.clickable')
+          .forEach((item) => {
+            item.addEventListener('click', () => {
+              const edgeType = item.dataset.edgeType;
+              const isActive = !item.classList.contains('inactive');
+
+              // Toggle active state
+              item.classList.toggle('inactive');
+
+              cy.edges().forEach((edge) => {
+                if (edge.data('type') === edgeType) {
+                  if (isActive) {
+                    edge.addClass('hidden');
+                  } else {
+                    edge.removeClass('hidden');
+                  }
+                }
+              });
+
+              // Update orphan filter based on visible edges
+              updateOrphanVisibility();
+            });
+          });
+      }
+
+      // Global function to update orphan visibility based on current visible edges
+      function updateOrphanVisibility() {
+        const hideOrphansCheckbox = document.getElementById('hide-orphans');
+        if (!hideOrphansCheckbox || !hideOrphansCheckbox.checked) return;
+
+        // Re-apply orphan hiding based on currently visible edges
+        cy.nodes().forEach((node) => {
+          // Count only visible connected edges
+          const visibleEdges = node
+            .connectedEdges()
+            .filter((e) => !e.hasClass('hidden'));
+          const isOrphan = visibleEdges.length === 0;
+
+          // Also check if node type is hidden
+          const nodeType = node.data('type');
+          const nodeTypeHidden = document
+            .querySelector(`#legend .legend-item[data-type="${nodeType}"]`)
+            ?.classList.contains('inactive');
+
+          if (nodeTypeHidden) {
+            node.addClass('hidden');
+          } else if (isOrphan) {
+            node.addClass('hidden');
+          } else {
+            node.removeClass('hidden');
+          }
+        });
+
+        // Update stats
+        const orphanStats = document.getElementById('orphan-stats');
+        if (orphanStats) {
+          const total = cy.nodes().length;
+          const orphans = cy.nodes().filter((n) => {
+            const visibleEdges = n
+              .connectedEdges()
+              .filter((e) => !e.hasClass('hidden'));
+            return visibleEdges.length === 0;
+          }).length;
+          orphanStats.textContent = `${orphans} orphan nodes out of ${total} total`;
+        }
       }
 
       function setupPatternFilter(config = {}) {
@@ -1462,6 +1740,105 @@
           console.log('[graphts] Auto-applying filter from CLI config');
           applyFilter();
         }
+      }
+
+      // Setup sidebar toggle buttons
+      function setupSidebarToggles() {
+        const leftClose = document.getElementById('left-close');
+        const leftExpand = document.getElementById('left-expand');
+        const rightClose = document.getElementById('right-close');
+        const rightExpand = document.getElementById('right-expand');
+        const leftSidebar = document.getElementById('left-sidebar');
+        const sidebar = document.getElementById('sidebar');
+
+        // Left sidebar close button
+        leftClose.addEventListener('click', () => {
+          leftSidebar.classList.add('collapsed');
+          document.body.classList.add('left-collapsed');
+          setTimeout(() => cy.resize(), 350);
+        });
+
+        // Left sidebar expand tab
+        leftExpand.addEventListener('click', () => {
+          leftSidebar.classList.remove('collapsed');
+          document.body.classList.remove('left-collapsed');
+          setTimeout(() => cy.resize(), 350);
+        });
+
+        // Right sidebar close button
+        rightClose.addEventListener('click', () => {
+          sidebar.classList.add('collapsed');
+          document.body.classList.add('right-collapsed');
+          setTimeout(() => cy.resize(), 350);
+        });
+
+        // Right sidebar expand tab
+        rightExpand.addEventListener('click', () => {
+          sidebar.classList.remove('collapsed');
+          document.body.classList.remove('right-collapsed');
+          setTimeout(() => cy.resize(), 350);
+        });
+      }
+
+      // Setup orphan node filter
+      function setupOrphanFilter() {
+        const hideOrphansCheckbox = document.getElementById('hide-orphans');
+        const orphanStats = document.getElementById('orphan-stats');
+
+        // Count orphan nodes based on visible edges only
+        const countOrphans = () => {
+          let orphanCount = 0;
+          cy.nodes().forEach((node) => {
+            const visibleEdges = node
+              .connectedEdges()
+              .filter((e) => !e.hasClass('hidden'));
+            if (visibleEdges.length === 0) {
+              orphanCount++;
+            }
+          });
+          return orphanCount;
+        };
+
+        const updateOrphanStats = () => {
+          const total = cy.nodes().length;
+          const orphans = countOrphans();
+          orphanStats.textContent = `${orphans} orphan nodes out of ${total} total`;
+        };
+
+        updateOrphanStats();
+
+        hideOrphansCheckbox.addEventListener('change', () => {
+          const hideOrphans = hideOrphansCheckbox.checked;
+
+          cy.nodes().forEach((node) => {
+            // Check if node type is hidden
+            const nodeType = node.data('type');
+            const nodeTypeHidden = document
+              .querySelector(`#legend .legend-item[data-type="${nodeType}"]`)
+              ?.classList.contains('inactive');
+
+            if (nodeTypeHidden) {
+              // Keep hidden if type is hidden
+              return;
+            }
+
+            // Count only visible connected edges
+            const visibleEdges = node
+              .connectedEdges()
+              .filter((e) => !e.hasClass('hidden'));
+            const isOrphan = visibleEdges.length === 0;
+
+            if (isOrphan) {
+              if (hideOrphans) {
+                node.addClass('hidden');
+              } else {
+                node.removeClass('hidden');
+              }
+            }
+          });
+
+          updateOrphanStats();
+        });
       }
 
       // Connect to SSE for watch mode updates
