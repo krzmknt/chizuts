@@ -9,6 +9,9 @@ export const NODE_TYPES = [
   'component',
   'type',
   'interface',
+  'enum',
+  'method',
+  'field',
 ] as const;
 
 export type NodeType = (typeof NODE_TYPES)[number];
