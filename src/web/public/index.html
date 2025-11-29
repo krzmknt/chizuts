@@ -370,12 +370,36 @@
 
       #sidebar > h2,
       #sidebar > #node-info,
-      #sidebar > #legend,
-      #sidebar > #edge-legend,
       #sidebar > #orphan-filter,
       #sidebar > #pattern-filter {
         padding-left: 20px;
         padding-right: 20px;
+      }
+
+      .legend-container {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #0f3460;
+      }
+
+      .legend-container #legend {
+        flex: 1;
+        min-width: 0;
+        padding-left: 20px;
+      }
+
+      .legend-container #edge-legend {
+        flex: 1;
+        min-width: 0;
+        padding-right: 20px;
+      }
+
+      .legend-container #legend h2,
+      .legend-container #edge-legend h2 {
+        font-size: 12px;
+        margin-top: 0;
       }
 
       #sidebar h2 {
@@ -443,10 +467,8 @@
         height: 16px;
       }
 
-      #legend {
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #0f3460;
+      #node-legend {
+        padding-top: 0px;
       }
 
       .legend-item {
@@ -493,14 +515,12 @@
       }
 
       #edge-legend {
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #0f3460;
+        padding-top: 0px;
       }
 
       #pattern-filter {
         margin-top: 20px;
-        padding-top: 20px;
+        padding-top: 0px;
         border-top: 1px solid #0f3460;
       }
 
@@ -528,9 +548,10 @@
       <span id="stats">Loading...</span>
       <div id="controls">
         <select id="layout">
-          <option value="dagre">Hierarchical (TB)</option>
+          <option value="dagre" selected>Hierarchical (TB)</option>
           <option value="dagre-lr">Hierarchical (LR)</option>
           <option value="dagre-compact">Hierarchical (Compact)</option>
+          <option value="cose-compound">Compound (Tight)</option>
           <option value="cose">Force-directed</option>
           <option value="breadthfirst">Breadthfirst</option>
           <option value="concentric">Concentric</option>
@@ -584,75 +605,77 @@
         <p style="color: #666">Click a node to see details</p>
       </div>
 
-      <div id="legend">
-        <h2>Nodes</h2>
-        <div class="legend-item clickable" data-type="module">
-          <div class="legend-color" style="background: #3498db"></div>
-          Module
+      <div class="legend-container">
+        <div id="legend">
+          <h2>Nodes</h2>
+          <div class="legend-item clickable" data-type="module">
+            <div class="legend-color" style="background: #3498db"></div>
+            Module
+          </div>
+          <div class="legend-item clickable" data-type="function">
+            <div class="legend-color" style="background: #2ecc71"></div>
+            Function
+          </div>
+          <div class="legend-item clickable" data-type="class">
+            <div class="legend-color" style="background: #9b59b6"></div>
+            Class
+          </div>
+          <div class="legend-item clickable" data-type="variable">
+            <div class="legend-color" style="background: #f39c12"></div>
+            Variable
+          </div>
+          <div class="legend-item clickable" data-type="component">
+            <div class="legend-color" style="background: #e74c3c"></div>
+            Component
+          </div>
+          <div class="legend-item clickable" data-type="interface">
+            <div class="legend-color" style="background: #1abc9c"></div>
+            Interface
+          </div>
+          <div class="legend-item clickable" data-type="type">
+            <div class="legend-color" style="background: #e67e22"></div>
+            Type
+          </div>
+          <div class="legend-item clickable" data-type="enum">
+            <div class="legend-color" style="background: #8e44ad"></div>
+            Enum
+          </div>
+          <div class="legend-item clickable" data-type="method">
+            <div class="legend-color" style="background: #27ae60"></div>
+            Method
+          </div>
+          <div class="legend-item clickable" data-type="field">
+            <div class="legend-color" style="background: #d35400"></div>
+            Field
+          </div>
         </div>
-        <div class="legend-item clickable" data-type="function">
-          <div class="legend-color" style="background: #2ecc71"></div>
-          Function
-        </div>
-        <div class="legend-item clickable" data-type="class">
-          <div class="legend-color" style="background: #9b59b6"></div>
-          Class
-        </div>
-        <div class="legend-item clickable" data-type="variable">
-          <div class="legend-color" style="background: #f39c12"></div>
-          Variable
-        </div>
-        <div class="legend-item clickable" data-type="component">
-          <div class="legend-color" style="background: #e74c3c"></div>
-          Component
-        </div>
-        <div class="legend-item clickable" data-type="interface">
-          <div class="legend-color" style="background: #1abc9c"></div>
-          Interface
-        </div>
-        <div class="legend-item clickable" data-type="type">
-          <div class="legend-color" style="background: #e67e22"></div>
-          Type
-        </div>
-        <div class="legend-item clickable" data-type="enum">
-          <div class="legend-color" style="background: #8e44ad"></div>
-          Enum
-        </div>
-        <div class="legend-item clickable" data-type="method">
-          <div class="legend-color" style="background: #27ae60"></div>
-          Method
-        </div>
-        <div class="legend-item clickable" data-type="field">
-          <div class="legend-color" style="background: #d35400"></div>
-          Field
-        </div>
-      </div>
 
-      <div id="edge-legend">
-        <h2>Edges</h2>
-        <div class="legend-item clickable" data-edge-type="import">
-          <div class="legend-line" style="background: #3498db"></div>
-          import
-        </div>
-        <div class="legend-item clickable" data-edge-type="defines">
-          <div class="legend-line" style="background: #7f8c8d"></div>
-          defines
-        </div>
-        <div class="legend-item clickable" data-edge-type="call">
-          <div class="legend-line" style="background: #e74c3c"></div>
-          call
-        </div>
-        <div class="legend-item clickable" data-edge-type="reference">
-          <div class="legend-line" style="background: #f39c12"></div>
-          reference
-        </div>
-        <div class="legend-item clickable" data-edge-type="extends">
-          <div class="legend-line" style="background: #9b59b6"></div>
-          extends
-        </div>
-        <div class="legend-item clickable" data-edge-type="implements">
-          <div class="legend-line" style="background: #e91e63"></div>
-          implements
+        <div id="edge-legend">
+          <h2>Edges</h2>
+          <div class="legend-item clickable" data-edge-type="import">
+            <div class="legend-line" style="background: #3498db"></div>
+            import
+          </div>
+          <div class="legend-item clickable" data-edge-type="defines">
+            <div class="legend-line" style="background: #7f8c8d"></div>
+            defines
+          </div>
+          <div class="legend-item clickable" data-edge-type="call">
+            <div class="legend-line" style="background: #e74c3c"></div>
+            call
+          </div>
+          <div class="legend-item clickable" data-edge-type="reference">
+            <div class="legend-line" style="background: #f39c12"></div>
+            reference
+          </div>
+          <div class="legend-item clickable" data-edge-type="extends">
+            <div class="legend-line" style="background: #9b59b6"></div>
+            extends
+          </div>
+          <div class="legend-item clickable" data-edge-type="implements">
+            <div class="legend-line" style="background: #e91e63"></div>
+            implements
+          </div>
         </div>
       </div>
 
@@ -660,7 +683,7 @@
         id="orphan-filter"
         style="
           margin-top: 20px;
-          padding-top: 20px;
+          padding-top: 0px;
           border-top: 1px solid #0f3460;
         "
       >
@@ -1178,8 +1201,28 @@
         // Convert to Cytoscape format
         const elements = [];
 
-        // Add nodes
-        for (const node of graph.nodes) {
+        // Build module ID lookup for parent assignment
+        const moduleIds = new Set(
+          graph.nodes.filter((n) => n.type === 'module').map((n) => n.id)
+        );
+
+        // Helper to find parent module ID from a node ID
+        function getParentModuleId(nodeId) {
+          if (!nodeId.includes('#')) return null;
+          const moduleId = nodeId.split('#')[0];
+          return moduleIds.has(moduleId) ? moduleId : null;
+        }
+
+        // Add nodes (modules first, then children)
+        // Sort so modules are added before their children
+        const sortedNodes = [...graph.nodes].sort((a, b) => {
+          if (a.type === 'module' && b.type !== 'module') return -1;
+          if (a.type !== 'module' && b.type === 'module') return 1;
+          return 0;
+        });
+
+        for (const node of sortedNodes) {
+          const parentId = getParentModuleId(node.id);
           elements.push({
             data: {
               id: node.id,
@@ -1190,6 +1233,7 @@
               line: node.line,
               column: node.column,
               metadata: node.metadata,
+              parent: parentId, // For compound nodes
             },
           });
         }
@@ -1197,11 +1241,22 @@
         // Add edges - build a Set of node IDs for O(1) lookup
         const nodeIdSet = new Set(graph.nodes.map((n) => n.id));
         let skippedEdges = 0;
+        let skippedDefinedEdges = 0;
 
         for (const edge of graph.edges) {
           // Only add edge if both source and target exist
           const sourceExists = nodeIdSet.has(edge.source);
           const targetExists = nodeIdSet.has(edge.target);
+
+          // Skip edges from module to its children (redundant with compound nodes)
+          // This includes "export" edges which indicate module defines/exports a symbol
+          if (
+            moduleIds.has(edge.source) &&
+            edge.target.startsWith(edge.source + '#')
+          ) {
+            skippedDefinedEdges++;
+            continue;
+          }
 
           if (sourceExists && targetExists) {
             elements.push({
@@ -1215,6 +1270,14 @@
           } else {
             skippedEdges++;
           }
+        }
+
+        if (skippedDefinedEdges > 0) {
+          console.log(
+            '[graphts] Hidden',
+            skippedDefinedEdges,
+            'module->child defined edges (redundant with compound nodes)'
+          );
         }
 
         if (skippedEdges > 0) {
@@ -1266,15 +1329,16 @@
           console.log('[graphts] After cleanup:', elements.length, 'elements');
         }
 
-        // Try to initialize with dagre layout, fall back to cose if it fails
+        // Use dagre (hierarchical) layout by default for better visibility
         let layoutName = 'dagre';
         let layoutOptions = {
           name: 'dagre',
           rankDir: 'TB',
-          nodeSep: 30,
-          rankSep: 100,
-          edgeSep: 10,
+          nodeSep: 50,
+          rankSep: 80,
           animate: false,
+          fit: true,
+          padding: 30,
         };
 
         try {
@@ -1282,8 +1346,9 @@
             container: document.getElementById('cy'),
             elements,
             style: [
+              // Child nodes (non-module symbols)
               {
-                selector: 'node',
+                selector: 'node[type != "module"]',
                 style: {
                   label: 'data(label)',
                   'background-color': (ele) =>
@@ -1293,8 +1358,8 @@
                   'text-halign': 'center',
                   'text-margin-y': 5,
                   'font-size': 10,
-                  width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
-                  height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  width: 22,
+                  height: 22,
                   'border-width': 2,
                   'border-color': '#1a1a2e',
                   'text-outline-width': 1,
@@ -1307,6 +1372,43 @@
                   },
                   'background-fit': 'contain',
                   'background-clip': 'none',
+                },
+              },
+              // Module nodes (compound parent nodes)
+              {
+                selector: 'node[type = "module"]',
+                style: {
+                  shape: 'round-rectangle',
+                  'background-color': '#16213e',
+                  'background-opacity': 0.9,
+                  'border-width': 2,
+                  'border-color': NODE_COLORS.module,
+                  'border-opacity': 0.8,
+                  label: 'data(label)',
+                  color: '#aaa',
+                  'text-valign': 'top',
+                  'text-halign': 'center',
+                  'text-margin-y': -5,
+                  'font-size': 9,
+                  'text-outline-width': 0,
+                  padding: 15,
+                  'compound-sizing-wrt-labels': 'exclude',
+                  'min-width': 60,
+                  'min-height': 40,
+                },
+              },
+              // Collapsed module (no visible children)
+              {
+                selector: 'node[type = "module"].collapsed',
+                style: {
+                  'background-color': NODE_COLORS.module,
+                  'background-opacity': 1,
+                  padding: 5,
+                  'min-width': 30,
+                  'min-height': 30,
+                  color: '#fff',
+                  'text-valign': 'bottom',
+                  'text-margin-y': 5,
                 },
               },
               {
@@ -1365,8 +1467,9 @@
             container: document.getElementById('cy'),
             elements,
             style: [
+              // Child nodes (non-module symbols) - fallback
               {
-                selector: 'node',
+                selector: 'node[type != "module"]',
                 style: {
                   label: 'data(label)',
                   'background-color': (ele) =>
@@ -1375,8 +1478,35 @@
                   'text-valign': 'bottom',
                   'text-halign': 'center',
                   'font-size': 10,
-                  width: (ele) => (ele.data('type') === 'module' ? 30 : 22),
-                  height: (ele) => (ele.data('type') === 'module' ? 30 : 22),
+                  width: 22,
+                  height: 22,
+                },
+              },
+              // Module nodes (compound parent nodes) - fallback
+              {
+                selector: 'node[type = "module"]',
+                style: {
+                  shape: 'round-rectangle',
+                  'background-color': '#16213e',
+                  'background-opacity': 0.9,
+                  'border-width': 2,
+                  'border-color': NODE_COLORS.module,
+                  label: 'data(label)',
+                  color: '#aaa',
+                  'text-valign': 'top',
+                  'text-halign': 'center',
+                  'font-size': 9,
+                  padding: 15,
+                },
+              },
+              {
+                selector: 'node[type = "module"].collapsed',
+                style: {
+                  'background-color': NODE_COLORS.module,
+                  'background-opacity': 1,
+                  padding: 5,
+                  color: '#fff',
+                  'text-valign': 'bottom',
                 },
               },
               {
@@ -1404,6 +1534,51 @@
           const node = evt.target;
           focusNode(node.id(), true);
         });
+
+        // Double-click on module to toggle expand/collapse
+        cy.on('dbltap', 'node[type = "module"]', (evt) => {
+          const moduleNode = evt.target;
+          const isCollapsed = moduleNode.hasClass('collapsed');
+
+          if (isCollapsed) {
+            // Expand: show children
+            moduleNode.removeClass('collapsed');
+            moduleNode.children().forEach((child) => {
+              child.removeClass('hidden');
+              // Also show edges connected to this child
+              child.connectedEdges().forEach((edge) => {
+                const sourceNode = cy.getElementById(edge.data('source'));
+                const targetNode = cy.getElementById(edge.data('target'));
+                // Only show edge if both ends are visible
+                if (
+                  !sourceNode.hasClass('hidden') &&
+                  !targetNode.hasClass('hidden')
+                ) {
+                  edge.removeClass('hidden');
+                }
+              });
+            });
+          } else {
+            // Collapse: hide children
+            moduleNode.addClass('collapsed');
+            moduleNode.children().forEach((child) => {
+              child.addClass('hidden');
+              // Hide edges connected to this child
+              child.connectedEdges().addClass('hidden');
+            });
+          }
+
+          // Update stats after collapse/expand
+          updateVisibleStats();
+        });
+
+        // Helper to update visible node/edge counts
+        function updateVisibleStats() {
+          const visibleNodes = cy.nodes().filter((n) => !n.hasClass('hidden'));
+          const visibleEdges = cy.edges().filter((e) => !e.hasClass('hidden'));
+          document.getElementById('filter-stats').textContent =
+            `Showing ${visibleNodes.length} nodes, ${visibleEdges.length} edges`;
+        }
 
         // Setup controls, search, and pattern filter
         setupControls();
@@ -1489,7 +1664,17 @@
           };
 
           // Configure layout based on selection
-          if (layoutValue === 'dagre') {
+          if (layoutValue === 'cose-compound') {
+            layoutOptions.name = 'cose';
+            layoutOptions.nodeRepulsion = 2000;
+            layoutOptions.nodeOverlap = 50;
+            layoutOptions.idealEdgeLength = 30;
+            layoutOptions.edgeElasticity = 200;
+            layoutOptions.nestingFactor = 5;
+            layoutOptions.gravity = 0.8;
+            layoutOptions.numIter = 1500;
+            layoutOptions.coolingFactor = 0.95;
+          } else if (layoutValue === 'dagre') {
             layoutOptions.name = 'dagre';
             layoutOptions.rankDir = 'TB';
             layoutOptions.nodeSep = 30;
@@ -1859,10 +2044,30 @@
               document.getElementById('stats').textContent =
                 `${graph.nodes.length} nodes, ${graph.edges.length} edges, ${graph.metadata.fileCount} files`;
 
-              // Rebuild elements
+              // Rebuild elements with parent assignment for compound nodes
               const elements = [];
 
-              for (const node of graph.nodes) {
+              // Build module ID lookup for parent assignment
+              const moduleIds = new Set(
+                graph.nodes.filter((n) => n.type === 'module').map((n) => n.id)
+              );
+
+              // Helper to find parent module ID from a node ID
+              function getParentModuleId(nodeId) {
+                if (!nodeId.includes('#')) return null;
+                const moduleId = nodeId.split('#')[0];
+                return moduleIds.has(moduleId) ? moduleId : null;
+              }
+
+              // Sort so modules are added before their children
+              const sortedNodes = [...graph.nodes].sort((a, b) => {
+                if (a.type === 'module' && b.type !== 'module') return -1;
+                if (a.type !== 'module' && b.type === 'module') return 1;
+                return 0;
+              });
+
+              for (const node of sortedNodes) {
+                const parentId = getParentModuleId(node.id);
                 elements.push({
                   data: {
                     id: node.id,
@@ -1873,11 +2078,20 @@
                     line: node.line,
                     column: node.column,
                     metadata: node.metadata,
+                    parent: parentId,
                   },
                 });
               }
 
               for (const edge of graph.edges) {
+                // Skip edges from module to its children (redundant with compound nodes)
+                if (
+                  moduleIds.has(edge.source) &&
+                  edge.target.startsWith(edge.source + '#')
+                ) {
+                  continue;
+                }
+
                 const sourceExists = graph.nodes.some(
                   (n) => n.id === edge.source
                 );
