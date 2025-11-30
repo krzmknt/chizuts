@@ -257,6 +257,7 @@ async function main(): Promise<void> {
     graph,
     port: options.port,
     watch: options.watch,
+    targetPath: process.cwd(),
     ...(options.include.length > 0 && { include: options.include }),
     ...(options.exclude.length > 0 && { exclude: options.exclude }),
   });
