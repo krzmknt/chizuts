@@ -28,7 +28,7 @@ export interface GraphBuilderOptions {
   readonly rootDir: string;
 
   /**
-   * Optional version of graphts to include in metadata.
+   * Optional version of chizuts to include in metadata.
    */
   readonly version?: string | undefined;
 }

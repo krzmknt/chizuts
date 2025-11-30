@@ -3,10 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>graphts - Dependency Graph Visualizer</title>
+    <title>chizuts - Dependency Graph Visualizer</title>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
     <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+    <!-- Cola: constraint-based layout with non-overlap guarantee -->
+    <script src="https://unpkg.com/webcola@3.4.0/WebCola/cola.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-cola@2.5.1/cytoscape-cola.js"></script>
     <style>
       * {
         margin: 0;
@@ -544,15 +548,16 @@
   </head>
   <body>
     <div id="header">
-      <h1>graphts</h1>
+      <h1>chizuts</h1>
       <span id="stats">Loading...</span>
       <div id="controls">
         <select id="layout">
-          <option value="dagre" selected>Hierarchical (TB)</option>
-          <option value="dagre-lr">Hierarchical (LR)</option>
-          <option value="dagre-compact">Hierarchical (Compact)</option>
-          <option value="cose-compound">Compound (Tight)</option>
-          <option value="cose">Force-directed</option>
+          <option value="cola" selected>Cola</option>
+          <option value="fcose">fCoSE</option>
+          <option value="cose">CoSE</option>
+          <option value="dagre">Dagre (top-bottom)</option>
+          <option value="dagre-lr">Dagre (left-right)</option>
+          <option value="dagre-compact">Dagre (compact)</option>
           <option value="breadthfirst">Breadthfirst</option>
           <option value="concentric">Concentric</option>
           <option value="circle">Circle</option>
@@ -801,6 +806,36 @@
         extends: '#9b59b6',
         implements: '#e91e63', // pink - distinct from green
       };
+
+      // LocalStorage keys for persistence
+      const STORAGE_KEYS = {
+        hiddenNodeTypes: 'chizuts_hiddenNodeTypes',
+        hiddenEdgeTypes: 'chizuts_hiddenEdgeTypes',
+        hideOrphans: 'chizuts_hideOrphans',
+        excludePatterns: 'chizuts_excludePatterns',
+        includePatterns: 'chizuts_includePatterns',
+        selectedLayout: 'chizuts_selectedLayout',
+      };
+
+      // Save state to localStorage
+      function saveState(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.warn('[chizuts] Failed to save state:', e);
+        }
+      }
+
+      // Load state from localStorage
+      function loadState(key, defaultValue = null) {
+        try {
+          const stored = localStorage.getItem(key);
+          return stored ? JSON.parse(stored) : defaultValue;
+        } catch (e) {
+          console.warn('[chizuts] Failed to load state:', e);
+          return defaultValue;
+        }
+      }
 
       let cy;
       let graphNodes = [];
@@ -1274,7 +1309,7 @@
 
         if (skippedDefinedEdges > 0) {
           console.log(
-            '[graphts] Hidden',
+            '[chizuts] Hidden',
             skippedDefinedEdges,
             'module->child defined edges (redundant with compound nodes)'
           );
@@ -1282,7 +1317,7 @@
 
         if (skippedEdges > 0) {
           console.log(
-            '[graphts] Skipped',
+            '[chizuts] Skipped',
             skippedEdges,
             'edges with missing nodes'
           );
@@ -1290,12 +1325,12 @@
 
         // Initialize Cytoscape
         console.log(
-          '[graphts] Initializing Cytoscape with',
+          '[chizuts] Initializing Cytoscape with',
           elements.length,
           'elements'
         );
         console.log(
-          '[graphts] Nodes:',
+          '[chizuts] Nodes:',
           graph.nodes.length,
           '| Valid edges:',
           elements.length - graph.nodes.length
@@ -1312,7 +1347,7 @@
         );
         if (orphanEdges.length > 0) {
           console.error(
-            '[graphts] Still have orphan edges after filtering:',
+            '[chizuts] Still have orphan edges after filtering:',
             orphanEdges.length
           );
           orphanEdges.slice(0, 3).forEach((e) => {
@@ -1326,19 +1361,47 @@
           );
           elements.length = 0;
           elements.push(...nodeElements, ...validEdges);
-          console.log('[graphts] After cleanup:', elements.length, 'elements');
+          console.log('[chizuts] After cleanup:', elements.length, 'elements');
         }
 
-        // Use dagre (hierarchical) layout by default for better visibility
-        let layoutName = 'dagre';
+        // Use Cola layout - constraint-based with guaranteed non-overlap
+        // Goals: (1) no module overlap, (2) no label overlap,
+        // (3) minimize module area, (4) minimize total edge length
+        let layoutName = 'cola';
+
+        // Check available layout extensions
+        if (typeof cytoscape !== 'undefined') {
+          console.log('[chizuts] cytoscape version:', cytoscape.version);
+          console.log('[chizuts] cola available:', typeof cola !== 'undefined');
+        }
+
         let layoutOptions = {
-          name: 'dagre',
-          rankDir: 'TB',
-          nodeSep: 50,
-          rankSep: 80,
+          name: 'cola',
           animate: false,
           fit: true,
           padding: 30,
+          // CONSTRAINT: prevent node overlap (guaranteed)
+          avoidOverlap: true,
+          // Edge length - minimize by setting small value
+          edgeLength: (edge) => 60,
+          // Node spacing - extra space between nodes
+          nodeSpacing: 10,
+          // Flow direction for better hierarchy (optional)
+          flow: { axis: 'y', minSeparation: 30 },
+          // Convergence threshold - lower = more iterations for better result
+          convergenceThreshold: 0.01,
+          // Handle disconnected components
+          handleDisconnected: true,
+          // Randomize for better initial positions
+          randomize: true,
+          // Max simulation time (ms)
+          maxSimulationTime: 4000,
+          // Unconstraint iteration for initial layout
+          unconstrIter: 10,
+          // User constraint iterations
+          userConstIter: 20,
+          // All constraints iterations
+          allConstIter: 20,
         };
 
         try {
@@ -1381,7 +1444,7 @@
                   shape: 'round-rectangle',
                   'background-color': '#16213e',
                   'background-opacity': 0.9,
-                  'border-width': 2,
+                  'border-width': 1,
                   'border-color': NODE_COLORS.module,
                   'border-opacity': 0.8,
                   label: 'data(label)',
@@ -1391,10 +1454,12 @@
                   'text-margin-y': -5,
                   'font-size': 9,
                   'text-outline-width': 0,
-                  padding: 15,
+                  // Minimize compound node area - very small padding
+                  padding: 5,
                   'compound-sizing-wrt-labels': 'exclude',
-                  'min-width': 60,
-                  'min-height': 40,
+                  // Remove min-width/min-height to allow tight fitting
+                  'min-width': 0,
+                  'min-height': 0,
                 },
               },
               // Collapsed module (no visible children)
@@ -1458,7 +1523,7 @@
           });
         } catch (e) {
           console.warn(
-            '[graphts] Dagre layout failed, falling back to cose:',
+            '[chizuts] Dagre layout failed, falling back to cose:',
             e.message
           );
           layoutName = 'cose';
@@ -1489,14 +1554,14 @@
                   shape: 'round-rectangle',
                   'background-color': '#16213e',
                   'background-opacity': 0.9,
-                  'border-width': 2,
+                  'border-width': 1,
                   'border-color': NODE_COLORS.module,
                   label: 'data(label)',
                   color: '#aaa',
                   'text-valign': 'top',
                   'text-halign': 'center',
                   'font-size': 9,
-                  padding: 15,
+                  padding: 8,
                 },
               },
               {
@@ -1588,10 +1653,10 @@
         try {
           const configResponse = await fetch('/api/config');
           const config = await configResponse.json();
-          console.log('[graphts] Fetched config:', config);
+          console.log('[chizuts] Fetched config:', config);
           setupPatternFilter(config);
         } catch (err) {
-          console.error('[graphts] Failed to fetch config:', err);
+          console.error('[chizuts] Failed to fetch config:', err);
           setupPatternFilter({});
         }
 
@@ -1655,25 +1720,58 @@
       }
 
       function setupControls() {
+        // Restore layout selection from localStorage
+        const savedLayout = loadState(STORAGE_KEYS.selectedLayout);
+        const layoutSelect = document.getElementById('layout');
+        if (savedLayout && layoutSelect) {
+          layoutSelect.value = savedLayout;
+        }
+
         // Layout selector
-        document.getElementById('layout').addEventListener('change', (e) => {
+        layoutSelect.addEventListener('change', (e) => {
           const layoutValue = e.target.value;
+          saveState(STORAGE_KEYS.selectedLayout, layoutValue);
           const layoutOptions = {
             animate: true,
             animationDuration: 500,
           };
 
           // Configure layout based on selection
-          if (layoutValue === 'cose-compound') {
-            layoutOptions.name = 'cose';
-            layoutOptions.nodeRepulsion = 2000;
-            layoutOptions.nodeOverlap = 50;
-            layoutOptions.idealEdgeLength = 30;
-            layoutOptions.edgeElasticity = 200;
-            layoutOptions.nestingFactor = 5;
-            layoutOptions.gravity = 0.8;
-            layoutOptions.numIter = 1500;
-            layoutOptions.coolingFactor = 0.95;
+          if (layoutValue === 'cola') {
+            layoutOptions.name = 'cola';
+            layoutOptions.avoidOverlap = true;
+            layoutOptions.edgeLength = (edge) => 60;
+            layoutOptions.nodeSpacing = 10;
+            layoutOptions.flow = { axis: 'y', minSeparation: 30 };
+            layoutOptions.convergenceThreshold = 0.01;
+            layoutOptions.handleDisconnected = true;
+            layoutOptions.randomize = true;
+            layoutOptions.maxSimulationTime = 4000;
+            layoutOptions.unconstrIter = 10;
+            layoutOptions.userConstIter = 20;
+            layoutOptions.allConstIter = 20;
+          } else if (layoutValue === 'fcose') {
+            layoutOptions.name = 'fcose';
+            layoutOptions.nodeDimensionsIncludeLabels = true;
+            layoutOptions.uniformNodeDimensions = false;
+            layoutOptions.packComponents = true;
+            layoutOptions.quality = 'proof';
+            layoutOptions.randomize = true;
+            layoutOptions.numIter = 2500;
+            layoutOptions.idealEdgeLength = (edge) => 50;
+            layoutOptions.edgeElasticity = (edge) => 0.45;
+            layoutOptions.nodeSeparation = 100;
+            layoutOptions.tile = true;
+            layoutOptions.tilingPaddingVertical = 20;
+            layoutOptions.tilingPaddingHorizontal = 20;
+            layoutOptions.gravity = 0.25;
+            layoutOptions.gravityRange = 3.8;
+            layoutOptions.gravityCompound = 1.0;
+            layoutOptions.gravityRangeCompound = 1.5;
+            layoutOptions.nodeRepulsion = (node) =>
+              node.isParent() ? 8000 : 4500;
+            layoutOptions.nestingFactor = 0.1;
+            layoutOptions.initialEnergyOnIncremental = 0.3;
           } else if (layoutValue === 'dagre') {
             layoutOptions.name = 'dagre';
             layoutOptions.rankDir = 'TB';
@@ -1723,6 +1821,25 @@
           link.click();
         });
 
+        // Restore hidden node types from localStorage
+        const savedHiddenNodeTypes = loadState(
+          STORAGE_KEYS.hiddenNodeTypes,
+          []
+        );
+        savedHiddenNodeTypes.forEach((type) => {
+          const legendItem = document.querySelector(
+            `#legend .legend-item[data-type="${type}"]`
+          );
+          if (legendItem) {
+            legendItem.classList.add('inactive');
+            cy.nodes().forEach((node) => {
+              if (node.data('type') === type) {
+                node.addClass('hidden');
+              }
+            });
+          }
+        });
+
         // Type filters via clickable legend items (nodes)
         document
           .querySelectorAll('#legend .legend-item.clickable')
@@ -1744,10 +1861,38 @@
                 }
               });
 
+              // Save hidden node types to localStorage
+              const hiddenTypes = [];
+              document
+                .querySelectorAll('#legend .legend-item.clickable.inactive')
+                .forEach((el) => {
+                  hiddenTypes.push(el.dataset.type);
+                });
+              saveState(STORAGE_KEYS.hiddenNodeTypes, hiddenTypes);
+
               // Update orphan filter if active
               updateOrphanVisibility();
             });
           });
+
+        // Restore hidden edge types from localStorage
+        const savedHiddenEdgeTypes = loadState(
+          STORAGE_KEYS.hiddenEdgeTypes,
+          []
+        );
+        savedHiddenEdgeTypes.forEach((edgeType) => {
+          const legendItem = document.querySelector(
+            `#edge-legend .legend-item[data-edge-type="${edgeType}"]`
+          );
+          if (legendItem) {
+            legendItem.classList.add('inactive');
+            cy.edges().forEach((edge) => {
+              if (edge.data('type') === edgeType) {
+                edge.addClass('hidden');
+              }
+            });
+          }
+        });
 
         // Edge type filters via clickable legend items
         document
@@ -1769,6 +1914,17 @@
                   }
                 }
               });
+
+              // Save hidden edge types to localStorage
+              const hiddenEdgeTypes = [];
+              document
+                .querySelectorAll(
+                  '#edge-legend .legend-item.clickable.inactive'
+                )
+                .forEach((el) => {
+                  hiddenEdgeTypes.push(el.dataset.edgeType);
+                });
+              saveState(STORAGE_KEYS.hiddenEdgeTypes, hiddenEdgeTypes);
 
               // Update orphan filter based on visible edges
               updateOrphanVisibility();
@@ -1819,7 +1975,7 @@
       }
 
       function setupPatternFilter(config = {}) {
-        console.log('[graphts] setupPatternFilter called with config:', config);
+        console.log('[chizuts] setupPatternFilter called with config:', config);
 
         const applyBtn = document.getElementById('apply-pattern-filter');
         const excludeInput = document.getElementById('exclude-patterns');
@@ -1827,7 +1983,7 @@
         const filterStats = document.getElementById('filter-stats');
 
         if (!excludeInput || !includeInput || !applyBtn || !filterStats) {
-          console.error('[graphts] Filter elements not found!', {
+          console.error('[chizuts] Filter elements not found!', {
             applyBtn: !!applyBtn,
             excludeInput: !!excludeInput,
             includeInput: !!includeInput,
@@ -1836,26 +1992,53 @@
           return;
         }
 
-        // Set default values from CLI config
-        if (config.exclude && config.exclude.length > 0) {
+        // First restore from localStorage (user's saved preferences take priority)
+        const savedExcludePatterns = loadState(
+          STORAGE_KEYS.excludePatterns,
+          null
+        );
+        const savedIncludePatterns = loadState(
+          STORAGE_KEYS.includePatterns,
+          null
+        );
+
+        // Use saved patterns if available, otherwise use CLI config
+        if (savedExcludePatterns !== null) {
+          excludeInput.value = savedExcludePatterns;
+          console.log('[chizuts] Restored exclude patterns from localStorage');
+        } else if (config.exclude && config.exclude.length > 0) {
           excludeInput.value = config.exclude.join('\n');
-          console.log('[graphts] Set exclude patterns:', config.exclude);
+          console.log(
+            '[chizuts] Set exclude patterns from CLI:',
+            config.exclude
+          );
         }
-        if (config.include && config.include.length > 0) {
+
+        if (savedIncludePatterns !== null) {
+          includeInput.value = savedIncludePatterns;
+          console.log('[chizuts] Restored include patterns from localStorage');
+        } else if (config.include && config.include.length > 0) {
           includeInput.value = config.include.join('\n');
-          console.log('[graphts] Set include patterns:', config.include);
+          console.log(
+            '[chizuts] Set include patterns from CLI:',
+            config.include
+          );
         }
 
         const applyFilter = () => {
-          console.log('[graphts] applyFilter called');
+          console.log('[chizuts] applyFilter called');
           console.log(
-            '[graphts] excludeInput.value:',
+            '[chizuts] excludeInput.value:',
             JSON.stringify(excludeInput.value)
           );
           console.log(
-            '[graphts] includeInput.value:',
+            '[chizuts] includeInput.value:',
             JSON.stringify(includeInput.value)
           );
+
+          // Save patterns to localStorage
+          saveState(STORAGE_KEYS.excludePatterns, excludeInput.value);
+          saveState(STORAGE_KEYS.includePatterns, includeInput.value);
 
           // Parse patterns from textareas
           const excludePatterns = excludeInput.value
@@ -1867,9 +2050,9 @@
             .map((p) => p.trim())
             .filter((p) => p.length > 0);
 
-          console.log('[graphts] excludePatterns:', excludePatterns);
-          console.log('[graphts] includePatterns:', includePatterns);
-          console.log('[graphts] cy.nodes() count:', cy.nodes().length);
+          console.log('[chizuts] excludePatterns:', excludePatterns);
+          console.log('[chizuts] includePatterns:', includePatterns);
+          console.log('[chizuts] cy.nodes() count:', cy.nodes().length);
 
           let hiddenCount = 0;
           let shownCount = 0;
@@ -1912,17 +2095,17 @@
           } else {
             filterStats.textContent = 'All nodes visible';
           }
-          console.log('[graphts] Filter applied:', { shownCount, hiddenCount });
+          console.log('[chizuts] Filter applied:', { shownCount, hiddenCount });
         };
 
         applyBtn.addEventListener('click', applyFilter);
 
-        // Auto-apply if patterns are provided from CLI
-        if (
-          (config.exclude && config.exclude.length > 0) ||
-          (config.include && config.include.length > 0)
-        ) {
-          console.log('[graphts] Auto-applying filter from CLI config');
+        // Auto-apply if patterns are provided (either from localStorage or CLI config)
+        const hasPatterns =
+          excludeInput.value.trim().length > 0 ||
+          includeInput.value.trim().length > 0;
+        if (hasPatterns) {
+          console.log('[chizuts] Auto-applying filter from saved/CLI config');
           applyFilter();
         }
       }
@@ -1990,10 +2173,28 @@
           orphanStats.textContent = `${orphans} orphan nodes out of ${total} total`;
         };
 
+        // Restore hide orphans checkbox state from localStorage
+        const savedHideOrphans = loadState(STORAGE_KEYS.hideOrphans, false);
+        hideOrphansCheckbox.checked = savedHideOrphans;
+
+        // Apply saved hide orphans state
+        if (savedHideOrphans) {
+          cy.nodes().forEach((node) => {
+            const visibleEdges = node
+              .connectedEdges()
+              .filter((e) => !e.hasClass('hidden'));
+            if (visibleEdges.length === 0) {
+              node.addClass('hidden');
+            }
+          });
+        }
+
         updateOrphanStats();
 
         hideOrphansCheckbox.addEventListener('change', () => {
           const hideOrphans = hideOrphansCheckbox.checked;
+          // Save hide orphans state to localStorage
+          saveState(STORAGE_KEYS.hideOrphans, hideOrphans);
 
           cy.nodes().forEach((node) => {
             // Check if node type is hidden

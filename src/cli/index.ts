@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview graphts CLI entry point.
+ * @fileoverview chizuts CLI entry point.
  * @module cli
  *
- * This module provides the command-line interface for graphts.
+ * This module provides the command-line interface for chizuts.
  * It wires up dependencies and executes the analysis pipeline,
  * then starts the visualization server.
  */
@@ -17,7 +17,7 @@ import {
 import { startServer } from '../web/server/index.js';
 
 /**
- * Current version of graphts.
+ * Current version of chizuts.
  */
 export const VERSION = '0.1.0';
 
@@ -61,10 +61,10 @@ export class CliError extends Error {
  */
 export function showHelp(): void {
   console.log(`
-graphts - TypeScript Dependency Graph Analyzer
+chizuts - TypeScript Dependency Graph Analyzer
 
 Usage:
-  graphts [options] [directory]
+  chizuts [options] [directory]
 
 Arguments:
   directory              Project directory to analyze (default: current directory)
@@ -79,19 +79,19 @@ Options:
   --tsconfig <path>      Path to tsconfig.json
 
 Examples:
-  graphts                        Analyze current directory
-  graphts ./my-project           Analyze specific directory
-  graphts -p 8080                Use custom port
-  graphts -w                     Watch mode with auto-reload
-  graphts --exclude "**/*.test.ts"  Exclude test files
+  chizuts                        Analyze current directory
+  chizuts ./my-project           Analyze specific directory
+  chizuts -p 8080                Use custom port
+  chizuts -w                     Watch mode with auto-reload
+  chizuts --exclude "**/*.test.ts"  Exclude test files
 `);
 }
 
 /**
- * Displays the current version of graphts.
+ * Displays the current version of chizuts.
  */
 export function showVersion(): void {
-  console.log(`graphts v${VERSION}`);
+  console.log(`chizuts v${VERSION}`);
 }
 
 /**
@@ -177,7 +177,7 @@ export function parseArgs(args: string[], defaultRootDir?: string): CliOptions {
       default:
         if (arg?.startsWith('-')) {
           throw new CliError(
-            `Unknown option: ${arg}\nRun "graphts --help" for usage information.`
+            `Unknown option: ${arg}\nRun "chizuts --help" for usage information.`
           );
         }
         // Positional argument (directory)
@@ -228,7 +228,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log('graphts - TypeScript Dependency Graph Analyzer');
+  console.log('chizuts - TypeScript Dependency Graph Analyzer');
   console.log('');
 
   // Wire up dependencies

@@ -1,4 +1,4 @@
-# ADR-001: Architecture Decision for graphts
+# ADR-001: Architecture Decision for chizuts
 
 Date: 2025-11-28
 
@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-graphts is a tool that analyzes TypeScript codebases and visualizes dependencies between modules, functions, variables, and components as a graph. We needed to decide:
+chizuts is a tool that analyzes TypeScript codebases and visualizes dependencies between modules, functions, variables, and components as a graph. We needed to decide:
 
 1. How to render and display the dependency graph
 2. Which programming language(s) to use
@@ -43,7 +43,7 @@ We evaluated the following approaches:
 
 ```
 ┌────────────────────────────────────────────────────┐
-│                    graphts (Core)                  │
+│                    chizuts (Core)                  │
 │  TypeScript: Code analysis → JSON dependency data  │
 └────────────────────────────────────────────────────┘
                          │

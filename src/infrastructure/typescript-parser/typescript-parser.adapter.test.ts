@@ -10,7 +10,7 @@ describe('TypeScriptParserAdapter', () => {
 
   beforeEach(() => {
     adapter = new TypeScriptParserAdapter();
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'graphts-parser-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chizuts-parser-test-'));
 
     // Create minimal tsconfig.json
     fs.writeFileSync(
