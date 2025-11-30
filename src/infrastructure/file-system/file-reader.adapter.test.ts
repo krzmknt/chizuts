@@ -10,7 +10,7 @@ describe('FileReaderAdapter', () => {
 
   beforeEach(() => {
     adapter = new FileReaderAdapter();
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'graphts-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chizuts-test-'));
   });
 
   afterEach(() => {

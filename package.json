@@ -1,12 +1,12 @@
 {
-  "name": "graphts",
+  "name": "chizuts",
   "version": "0.1.0",
   "description": "A TypeScript codebase analyzer that visualizes dependencies between modules, functions, variables, and components as a graph",
   "type": "module",
   "main": "dist/domain/index.js",
   "types": "dist/domain/index.d.ts",
   "bin": {
-    "graphts": "dist/cli/index.js"
+    "chizuts": "dist/cli/index.js"
   },
   "files": [
     "dist"
@@ -39,12 +39,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/krzmknt/graphts.git"
+    "url": "git+https://github.com/krzmknt/chizuts.git"
   },
   "bugs": {
-    "url": "https://github.com/krzmknt/graphts/issues"
+    "url": "https://github.com/krzmknt/chizuts/issues"
   },
-  "homepage": "https://github.com/krzmknt/graphts#readme",
+  "homepage": "https://github.com/krzmknt/chizuts#readme",
   "engines": {
     "node": ">=20.0.0"
   },

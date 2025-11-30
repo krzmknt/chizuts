@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-As graphts grows, we need a clear architecture to:
+As chizuts grows, we need a clear architecture to:
 
 - Maintain code quality and testability
 - Enable future extensibility (VS Code extension, Neovim plugin)

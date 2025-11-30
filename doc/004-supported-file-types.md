@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-graphts analyzes TypeScript/JavaScript codebases. We need to document which file types are supported by the TypeScript Compiler API and our file discovery mechanism.
+chizuts analyzes TypeScript/JavaScript codebases. We need to document which file types are supported by the TypeScript Compiler API and our file discovery mechanism.
 
 ## Decision
 

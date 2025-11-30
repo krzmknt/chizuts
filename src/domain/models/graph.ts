@@ -41,7 +41,7 @@ export interface GraphMetadata {
   readonly fileCount: number;
 
   /**
-   * Version of graphts used to generate the graph.
+   * Version of chizuts used to generate the graph.
    */
   readonly version: string;
 }
@@ -126,7 +126,7 @@ interface CreateGraphMetadataParams {
   rootDir: string;
   /** Total number of files analyzed */
   fileCount?: number | undefined;
-  /** Version of graphts used */
+  /** Version of chizuts used */
   version?: string | undefined;
 }
 
