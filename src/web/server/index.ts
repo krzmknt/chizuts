@@ -60,6 +60,11 @@ export interface ServerOptions {
    * Exclude patterns for filtering (passed to the UI).
    */
   readonly exclude?: readonly string[];
+
+  /**
+   * Target project path for saving layout data.
+   */
+  readonly targetPath?: string;
 }
 
 /**
@@ -151,6 +156,101 @@ export function startServer(options: ServerOptions): Promise<ServerInstance> {
             exclude: options.exclude ?? [],
           })
         );
+        return;
+      }
+
+      // API endpoint for loading saved layout
+      if (url === '/api/layout' && req.method === 'GET') {
+        if (!options.targetPath) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Target path not configured' }));
+          return;
+        }
+
+        const layoutPath = path.join(
+          options.targetPath,
+          '.chizuts',
+          'layout.json'
+        );
+        fs.readFile(layoutPath, 'utf-8', (err, content) => {
+          if (err) {
+            if (err.code === 'ENOENT') {
+              // No saved layout exists
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ positions: {} }));
+            } else {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Failed to read layout file' }));
+            }
+            return;
+          }
+
+          try {
+            const layoutData = JSON.parse(content) as Record<string, unknown>;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(layoutData));
+          } catch {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid layout file format' }));
+          }
+        });
+        return;
+      }
+
+      // API endpoint for saving layout
+      if (url === '/api/layout' && req.method === 'POST') {
+        if (!options.targetPath) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Target path not configured' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString();
+        });
+
+        req.on('end', () => {
+          try {
+            const layoutData = JSON.parse(body) as Record<string, unknown>;
+            const chizutsDir = path.join(options.targetPath!, '.chizuts');
+            const layoutPath = path.join(chizutsDir, 'layout.json');
+
+            // Create .chizuts directory if it doesn't exist
+            fs.mkdir(chizutsDir, { recursive: true }, (mkdirErr) => {
+              if (mkdirErr) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(
+                  JSON.stringify({
+                    error: 'Failed to create .chizuts directory',
+                  })
+                );
+                return;
+              }
+
+              // Write layout file
+              fs.writeFile(
+                layoutPath,
+                JSON.stringify(layoutData, null, 2),
+                (writeErr) => {
+                  if (writeErr) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(
+                      JSON.stringify({ error: 'Failed to write layout file' })
+                    );
+                    return;
+                  }
+
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ success: true, path: layoutPath }));
+                }
+              );
+            });
+          } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+          }
+        });
         return;
       }
 

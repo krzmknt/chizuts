@@ -564,6 +564,7 @@
           <option value="grid">Grid</option>
         </select>
         <button id="fit-btn">Fit to Screen</button>
+        <button id="save-layout-btn">Save Layout</button>
         <button id="export-btn">Export PNG</button>
       </div>
     </div>
@@ -1216,10 +1217,65 @@
         });
       }
 
+      // Save current layout positions to the server
+      async function saveLayout() {
+        const positions = {};
+        cy.nodes().forEach((node) => {
+          const pos = node.position();
+          positions[node.id()] = { x: pos.x, y: pos.y };
+        });
+
+        try {
+          const response = await fetch('/api/layout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              positions,
+              savedAt: new Date().toISOString(),
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('[chizuts] Layout saved:', result.path);
+            alert('Layout saved successfully!');
+          } else {
+            const error = await response.json();
+            console.error('[chizuts] Failed to save layout:', error);
+            alert('Failed to save layout: ' + error.error);
+          }
+        } catch (err) {
+          console.error('[chizuts] Error saving layout:', err);
+          alert('Error saving layout');
+        }
+      }
+
+      // Load saved layout positions from the server
+      async function loadSavedLayout() {
+        try {
+          const response = await fetch('/api/layout');
+          if (response.ok) {
+            const data = await response.json();
+            console.log(
+              '[chizuts] Loaded saved layout:',
+              Object.keys(data.positions || {}).length,
+              'positions'
+            );
+            return data.positions || {};
+          }
+        } catch (err) {
+          console.error('[chizuts] Error loading layout:', err);
+        }
+        return {};
+      }
+
       async function init() {
-        // Fetch graph data
-        const response = await fetch('/api/graph');
-        const graph = await response.json();
+        // Fetch graph data and saved layout in parallel
+        const [graphResponse, savedPositions] = await Promise.all([
+          fetch('/api/graph'),
+          loadSavedLayout(),
+        ]);
+        const graph = await graphResponse.json();
 
         // Store for search
         graphNodes = graph.nodes;
@@ -1364,6 +1420,34 @@
           console.log('[chizuts] After cleanup:', elements.length, 'elements');
         }
 
+        // Check how many nodes have saved positions
+        const savedPositionCount = Object.keys(savedPositions).length;
+        const nodesWithSavedPositions = new Set();
+        const nodesWithoutSavedPositions = [];
+
+        // Apply saved positions to elements and track which nodes are new
+        for (const element of elements) {
+          if (element.data && !element.data.source) {
+            // This is a node
+            const nodeId = element.data.id;
+            if (savedPositions[nodeId]) {
+              element.position = savedPositions[nodeId];
+              nodesWithSavedPositions.add(nodeId);
+            } else {
+              nodesWithoutSavedPositions.push(nodeId);
+            }
+          }
+        }
+
+        console.log(
+          '[chizuts] Nodes with saved positions:',
+          nodesWithSavedPositions.size
+        );
+        console.log(
+          '[chizuts] New nodes without positions:',
+          nodesWithoutSavedPositions.length
+        );
+
         // Use Cola layout - constraint-based with guaranteed non-overlap
         // Goals: (1) no module overlap, (2) no label overlap,
         // (3) minimize module area, (4) minimize total edge length
@@ -1375,34 +1459,43 @@
           console.log('[chizuts] cola available:', typeof cola !== 'undefined');
         }
 
-        let layoutOptions = {
-          name: 'cola',
-          animate: false,
-          fit: true,
-          padding: 30,
-          // CONSTRAINT: prevent node overlap (guaranteed)
-          avoidOverlap: true,
-          // Edge length - minimize by setting small value
-          edgeLength: (edge) => 60,
-          // Node spacing - extra space between nodes
-          nodeSpacing: 10,
-          // Flow direction for better hierarchy (optional)
-          flow: { axis: 'y', minSeparation: 30 },
-          // Convergence threshold - lower = more iterations for better result
-          convergenceThreshold: 0.01,
-          // Handle disconnected components
-          handleDisconnected: true,
-          // Randomize for better initial positions
-          randomize: true,
-          // Max simulation time (ms)
-          maxSimulationTime: 4000,
-          // Unconstraint iteration for initial layout
-          unconstrIter: 10,
-          // User constraint iterations
-          userConstIter: 20,
-          // All constraints iterations
-          allConstIter: 20,
-        };
+        // If we have saved positions, use preset layout; otherwise use cola
+        const hasSavedPositions = savedPositionCount > 0;
+
+        let layoutOptions = hasSavedPositions
+          ? {
+              name: 'preset',
+              fit: true,
+              padding: 30,
+            }
+          : {
+              name: 'cola',
+              animate: false,
+              fit: true,
+              padding: 30,
+              // CONSTRAINT: prevent node overlap (guaranteed)
+              avoidOverlap: true,
+              // Edge length - minimize by setting small value
+              edgeLength: (edge) => 60,
+              // Node spacing - extra space between nodes
+              nodeSpacing: 10,
+              // Flow direction for better hierarchy (optional)
+              flow: { axis: 'y', minSeparation: 30 },
+              // Convergence threshold - lower = more iterations for better result
+              convergenceThreshold: 0.01,
+              // Handle disconnected components
+              handleDisconnected: true,
+              // Randomize for better initial positions
+              randomize: true,
+              // Max simulation time (ms)
+              maxSimulationTime: 4000,
+              // Unconstraint iteration for initial layout
+              unconstrIter: 10,
+              // User constraint iterations
+              userConstIter: 20,
+              // All constraints iterations
+              allConstIter: 20,
+            };
 
         try {
           cy = cytoscape({
@@ -1663,6 +1756,79 @@
         // Setup sidebar toggles and orphan filter
         setupSidebarToggles();
         setupOrphanFilter();
+
+        // If we have saved positions but there are new nodes, position them near related nodes
+        if (hasSavedPositions && nodesWithoutSavedPositions.length > 0) {
+          console.log(
+            '[chizuts] Positioning',
+            nodesWithoutSavedPositions.length,
+            'new nodes'
+          );
+
+          // For each new node, find a good initial position
+          nodesWithoutSavedPositions.forEach((nodeId) => {
+            const node = cy.getElementById(nodeId);
+            if (node.length === 0) return;
+
+            // Try to position near connected nodes that have positions
+            const connectedNodes = node.neighborhood('node').filter((n) => {
+              const pos = n.position();
+              return pos.x !== 0 || pos.y !== 0;
+            });
+
+            if (connectedNodes.length > 0) {
+              // Position near the centroid of connected nodes with some offset
+              let sumX = 0,
+                sumY = 0;
+              connectedNodes.forEach((n) => {
+                const pos = n.position();
+                sumX += pos.x;
+                sumY += pos.y;
+              });
+              const avgX = sumX / connectedNodes.length;
+              const avgY = sumY / connectedNodes.length;
+
+              // Add random offset to avoid overlap
+              const offsetX = (Math.random() - 0.5) * 100;
+              const offsetY = (Math.random() - 0.5) * 100;
+
+              node.position({ x: avgX + offsetX, y: avgY + offsetY });
+            } else {
+              // No connected nodes with positions, place at a random position in the viewport
+              const extent = cy.extent();
+              const randomX =
+                extent.x1 + Math.random() * (extent.x2 - extent.x1);
+              const randomY =
+                extent.y1 + Math.random() * (extent.y2 - extent.y1);
+              node.position({ x: randomX, y: randomY });
+            }
+          });
+
+          // Run a short cola layout on just the new nodes to avoid overlaps
+          const newNodes = cy
+            .nodes()
+            .filter((n) => nodesWithoutSavedPositions.includes(n.id()));
+          if (newNodes.length > 0) {
+            // Lock existing nodes and run layout
+            cy.nodes().forEach((n) => {
+              if (!nodesWithoutSavedPositions.includes(n.id())) {
+                n.lock();
+              }
+            });
+
+            cy.layout({
+              name: 'cola',
+              animate: false,
+              fit: false,
+              avoidOverlap: true,
+              nodeSpacing: 10,
+              maxSimulationTime: 1000,
+            }).run();
+
+            // Unlock all nodes
+            cy.nodes().unlock();
+          }
+        }
       }
 
       function showNodeInfo(data) {
@@ -1820,6 +1986,13 @@
           link.href = png;
           link.click();
         });
+
+        // Save Layout button
+        document
+          .getElementById('save-layout-btn')
+          .addEventListener('click', () => {
+            saveLayout();
+          });
 
         // Restore hidden node types from localStorage
         const savedHiddenNodeTypes = loadState(
