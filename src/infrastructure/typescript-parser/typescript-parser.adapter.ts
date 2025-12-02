@@ -69,6 +69,9 @@ export class TypeScriptParserAdapter implements IParser {
       parsedConfig.options
     );
 
+    // Get TypeChecker for symbol resolution
+    const typeChecker = program.getTypeChecker();
+
     // First pass: Collect re-export mappings from all files
     const reexportMap = new Map<string, string>(); // maps re-export id -> original id
 
@@ -83,8 +86,12 @@ export class TypeScriptParserAdapter implements IParser {
     // Build fully resolved re-export map (follow chains)
     const resolvedReexportMap = this.resolveReexportChains(reexportMap);
 
-    // Second pass: Parse files with resolved re-exports
+    // Second pass: Parse files with resolved re-exports and build symbol registry
     const results: ParsedFile[] = [];
+    // Maps ts.Symbol -> node ID for call edge resolution
+    const symbolToNodeId = new Map<ts.Symbol, string>();
+    // Maps declaration node -> node ID
+    const declarationToNodeId = new Map<ts.Node, string>();
 
     for (const filePath of filePaths) {
       const sourceFile = program.getSourceFile(filePath);
@@ -95,12 +102,39 @@ export class TypeScriptParserAdapter implements IParser {
       const parsed = this.parseSourceFile(
         sourceFile,
         options.rootDir,
-        resolvedReexportMap
+        resolvedReexportMap,
+        typeChecker,
+        symbolToNodeId,
+        declarationToNodeId
       );
       results.push(parsed);
     }
 
-    return results;
+    // Third pass: Collect call edges using TypeChecker
+    const resultsWithCallEdges: ParsedFile[] = [];
+    for (const result of results) {
+      const sourceFile = program.getSourceFile(result.filePath);
+      if (!sourceFile) {
+        resultsWithCallEdges.push(result);
+        continue;
+      }
+
+      const callEdges = this.collectCallEdges(
+        sourceFile,
+        options.rootDir,
+        typeChecker,
+        symbolToNodeId,
+        declarationToNodeId
+      );
+
+      // Create new result with combined edges
+      resultsWithCallEdges.push({
+        ...result,
+        edges: [...result.edges, ...callEdges],
+      });
+    }
+
+    return resultsWithCallEdges;
   }
 
   /**
@@ -176,12 +210,16 @@ export class TypeScriptParserAdapter implements IParser {
   }
 
   /**
-   * Parses a single source file and extracts nodes and edges
+   * Parses a single source file and extracts nodes and edges.
+   * Also registers symbols for call edge resolution.
    */
   private parseSourceFile(
     sourceFile: ts.SourceFile,
     rootDir: string,
-    reexportMap: Map<string, string>
+    reexportMap: Map<string, string>,
+    typeChecker: ts.TypeChecker,
+    symbolToNodeId: Map<ts.Symbol, string>,
+    declarationToNodeId: Map<ts.Node, string>
   ): ParsedFile {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -202,7 +240,33 @@ export class TypeScriptParserAdapter implements IParser {
     );
 
     // Build import map: symbol name -> source module ID
-    const importMap = this.buildImportMap(sourceFile, filePath, rootDir);
+    const importMap = this.buildImportMap(
+      sourceFile,
+      filePath,
+      rootDir,
+      reexportMap
+    );
+
+    // Helper to register a symbol for call edge resolution
+    const registerSymbol = (node: ts.Node, nodeId: string): void => {
+      const symbol = typeChecker.getSymbolAtLocation(
+        ts.isVariableDeclaration(node) && node.name
+          ? node.name
+          : ts.isFunctionDeclaration(node) && node.name
+            ? node.name
+            : ts.isClassDeclaration(node) && node.name
+              ? node.name
+              : ts.isMethodDeclaration(node) && node.name
+                ? node.name
+                : ts.isPropertyDeclaration(node) && node.name
+                  ? node.name
+                  : node
+      );
+      if (symbol) {
+        symbolToNodeId.set(symbol, nodeId);
+      }
+      declarationToNodeId.set(node, nodeId);
+    };
 
     // Visit all nodes in the AST
     const visit = (node: ts.Node): void => {
@@ -240,6 +304,8 @@ export class TypeScriptParserAdapter implements IParser {
               type: 'export',
             })
           );
+          // Register symbol for call edge resolution
+          registerSymbol(node, funcNode.id);
         }
       }
 
@@ -260,6 +326,8 @@ export class TypeScriptParserAdapter implements IParser {
               type: 'export',
             })
           );
+          // Register class symbol
+          registerSymbol(node, classNode.id);
 
           // Process heritage clauses (extends, implements)
           this.processHeritageClause(
@@ -287,6 +355,19 @@ export class TypeScriptParserAdapter implements IParser {
               })
             );
           }
+
+          // Register class member symbols
+          for (const member of node.members) {
+            if (
+              (ts.isMethodDeclaration(member) ||
+                ts.isPropertyDeclaration(member)) &&
+              member.name
+            ) {
+              const memberName = member.name.getText(sourceFile);
+              const memberId = `${classNode.id}.${memberName}`;
+              registerSymbol(member, memberId);
+            }
+          }
         }
       }
 
@@ -308,6 +389,14 @@ export class TypeScriptParserAdapter implements IParser {
             })
           );
         }
+        // Register variable symbols
+        for (const declaration of node.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name)) {
+            const varName = declaration.name.text;
+            const varId = `${moduleId}#${varName}`;
+            registerSymbol(declaration, varId);
+          }
+        }
       }
 
       // Interface declarations
@@ -326,6 +415,8 @@ export class TypeScriptParserAdapter implements IParser {
             type: 'export',
           })
         );
+        // Register interface symbol
+        registerSymbol(node, interfaceNode.id);
       }
 
       // Type alias declarations
@@ -344,6 +435,8 @@ export class TypeScriptParserAdapter implements IParser {
             type: 'export',
           })
         );
+        // Register type symbol
+        registerSymbol(node, typeNode.id);
       }
 
       // Enum declarations
@@ -363,6 +456,8 @@ export class TypeScriptParserAdapter implements IParser {
               type: 'export',
             })
           );
+          // Register enum symbol
+          registerSymbol(node, enumNode.id);
         }
       }
 
@@ -383,7 +478,8 @@ export class TypeScriptParserAdapter implements IParser {
   private buildImportMap(
     sourceFile: ts.SourceFile,
     filePath: string,
-    rootDir: string
+    rootDir: string,
+    reexportMap: Map<string, string>
   ): Map<string, string> {
     const importMap = new Map<string, string>();
 
@@ -413,12 +509,17 @@ export class TypeScriptParserAdapter implements IParser {
             for (const element of importClause.namedBindings.elements) {
               const localName = element.name.text;
               const originalName = element.propertyName?.text || localName;
-              importMap.set(localName, `${sourceModuleId}#${originalName}`);
+              const tentativeId = `${sourceModuleId}#${originalName}`;
+              // Resolve through re-exports to find the actual source
+              const resolvedId = reexportMap.get(tentativeId) ?? tentativeId;
+              importMap.set(localName, resolvedId);
             }
           }
           // Default import: import Foo from '...'
           if (importClause.name) {
-            importMap.set(importClause.name.text, `${sourceModuleId}#default`);
+            const tentativeId = `${sourceModuleId}#default`;
+            const resolvedId = reexportMap.get(tentativeId) ?? tentativeId;
+            importMap.set(importClause.name.text, resolvedId);
           }
         }
       }
@@ -1132,5 +1233,256 @@ export class TypeScriptParserAdapter implements IParser {
     }
 
     return memberNodes;
+  }
+
+  /**
+   * Collects call edges by traversing the AST and resolving symbols using TypeChecker.
+   * Detects:
+   * - Function calls: foo(), bar.baz()
+   * - Method calls: obj.method()
+   * - Property accesses: obj.field
+   * - Constructor calls: new Foo()
+   */
+  private collectCallEdges(
+    sourceFile: ts.SourceFile,
+    rootDir: string,
+    typeChecker: ts.TypeChecker,
+    symbolToNodeId: Map<ts.Symbol, string>,
+    declarationToNodeId: Map<ts.Node, string>
+  ): Edge[] {
+    const edges: Edge[] = [];
+    const addedEdges = new Set<string>(); // Track added edges to avoid duplicates
+    const relativeFilePath = path.relative(rootDir, sourceFile.fileName);
+    const currentModuleId = this.createModuleId(relativeFilePath);
+
+    // Find the enclosing symbol (function, method, or module) for a node
+    const findEnclosingSymbolId = (node: ts.Node): string | null => {
+      let current: ts.Node | undefined = node.parent;
+
+      while (current) {
+        // Check if we're inside a function declaration
+        if (ts.isFunctionDeclaration(current) && current.name) {
+          const funcName = current.name.text;
+          return `${currentModuleId}#${funcName}`;
+        }
+
+        // Check if we're inside a function expression or arrow function
+        if (ts.isFunctionExpression(current) || ts.isArrowFunction(current)) {
+          // Look for variable declaration parent
+          const varParent = current.parent;
+          if (
+            ts.isVariableDeclaration(varParent) &&
+            ts.isIdentifier(varParent.name)
+          ) {
+            const varName = varParent.name.text;
+            return `${currentModuleId}#${varName}`;
+          }
+        }
+
+        // Check if we're inside a method
+        if (
+          ts.isMethodDeclaration(current) &&
+          current.name &&
+          ts.isIdentifier(current.name)
+        ) {
+          const methodName = current.name.text;
+          // Find the parent class
+          const classNode = current.parent;
+          if (ts.isClassDeclaration(classNode) && classNode.name) {
+            const className = classNode.name.text;
+            return `${currentModuleId}#${className}.${methodName}`;
+          }
+        }
+
+        current = current.parent;
+      }
+
+      // Default to module level
+      return currentModuleId;
+    };
+
+    // Resolve a symbol to its node ID
+    const resolveSymbolToNodeId = (symbol: ts.Symbol): string | null => {
+      // First, try direct lookup
+      if (symbolToNodeId.has(symbol)) {
+        return symbolToNodeId.get(symbol)!;
+      }
+
+      // Try to get the aliased symbol (for imports)
+      try {
+        const aliasedSymbol = typeChecker.getAliasedSymbol(symbol);
+        if (aliasedSymbol && symbolToNodeId.has(aliasedSymbol)) {
+          return symbolToNodeId.get(aliasedSymbol)!;
+        }
+      } catch {
+        // getAliasedSymbol can throw if symbol is not an alias
+      }
+
+      // Try to find via declarations
+      const declarations = symbol.getDeclarations();
+      if (declarations && declarations.length > 0) {
+        for (const decl of declarations) {
+          if (declarationToNodeId.has(decl)) {
+            return declarationToNodeId.get(decl)!;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    // Add a call edge if valid
+    const addCallEdge = (sourceId: string, targetId: string): void => {
+      const edgeKey = `${sourceId}->${targetId}`;
+      if (!addedEdges.has(edgeKey) && sourceId !== targetId) {
+        addedEdges.add(edgeKey);
+        edges.push(
+          createEdge({
+            source: sourceId,
+            target: targetId,
+            type: 'call',
+          })
+        );
+      }
+    };
+
+    const visit = (node: ts.Node): void => {
+      // Handle CallExpression: foo() or obj.method()
+      if (ts.isCallExpression(node)) {
+        const sourceId = findEnclosingSymbolId(node);
+        if (!sourceId) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        const expression = node.expression;
+
+        // Direct function call: foo()
+        if (ts.isIdentifier(expression)) {
+          const symbol = typeChecker.getSymbolAtLocation(expression);
+          if (symbol) {
+            const targetId = resolveSymbolToNodeId(symbol);
+            if (targetId) {
+              addCallEdge(sourceId, targetId);
+            }
+          }
+        }
+
+        // Property access call: obj.method() or obj.prop.method()
+        if (ts.isPropertyAccessExpression(expression)) {
+          const symbol = typeChecker.getSymbolAtLocation(expression.name);
+          if (symbol) {
+            const targetId = resolveSymbolToNodeId(symbol);
+            if (targetId) {
+              addCallEdge(sourceId, targetId);
+            }
+          }
+        }
+      }
+
+      // Handle NewExpression: new Foo()
+      if (ts.isNewExpression(node)) {
+        const sourceId = findEnclosingSymbolId(node);
+        if (!sourceId) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        const expression = node.expression;
+        if (ts.isIdentifier(expression)) {
+          const symbol = typeChecker.getSymbolAtLocation(expression);
+          if (symbol) {
+            const targetId = resolveSymbolToNodeId(symbol);
+            if (targetId) {
+              addCallEdge(sourceId, targetId);
+            }
+          }
+        }
+      }
+
+      // Handle PropertyAccessExpression for field access (not calls)
+      if (
+        ts.isPropertyAccessExpression(node) &&
+        !ts.isCallExpression(node.parent)
+      ) {
+        const sourceId = findEnclosingSymbolId(node);
+        if (!sourceId) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        const symbol = typeChecker.getSymbolAtLocation(node.name);
+        if (symbol) {
+          const targetId = resolveSymbolToNodeId(symbol);
+          if (targetId) {
+            addCallEdge(sourceId, targetId);
+          }
+        }
+      }
+
+      // Handle Identifier for variable references
+      // Skip: declarations, property access names, function/method names being called
+      if (ts.isIdentifier(node)) {
+        const parent = node.parent;
+
+        // Skip if this is a property name in property access (e.g., obj.prop - skip 'prop')
+        if (ts.isPropertyAccessExpression(parent) && parent.name === node) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        // Skip if this is the function being called (e.g., foo() - skip 'foo')
+        if (ts.isCallExpression(parent) && parent.expression === node) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        // Skip if this is the class being instantiated (e.g., new Foo() - skip 'Foo')
+        if (ts.isNewExpression(parent) && parent.expression === node) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        // Skip declarations
+        if (
+          ts.isVariableDeclaration(parent) ||
+          ts.isFunctionDeclaration(parent) ||
+          ts.isParameter(parent) ||
+          ts.isImportSpecifier(parent) ||
+          ts.isExportSpecifier(parent) ||
+          ts.isClassDeclaration(parent) ||
+          ts.isInterfaceDeclaration(parent) ||
+          ts.isTypeAliasDeclaration(parent) ||
+          ts.isEnumDeclaration(parent) ||
+          ts.isMethodDeclaration(parent) ||
+          ts.isPropertyDeclaration(parent) ||
+          ts.isImportClause(parent) ||
+          ts.isNamespaceImport(parent)
+        ) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        const sourceId = findEnclosingSymbolId(node);
+        if (!sourceId) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        const symbol = typeChecker.getSymbolAtLocation(node);
+        if (symbol) {
+          const targetId = resolveSymbolToNodeId(symbol);
+          if (targetId) {
+            addCallEdge(sourceId, targetId);
+          }
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+
+    return edges;
   }
 }
