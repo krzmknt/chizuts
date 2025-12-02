@@ -258,8 +258,18 @@
       }
 
       .tree-file::before {
-        content: '📄';
-        font-size: 12px;
+        content: 'M';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+        text-align: center;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        background: #3498db;
+        color: #fff;
+        margin-right: 4px;
       }
 
       .tree-symbol {
@@ -1297,23 +1307,45 @@
           graph.nodes.filter((n) => n.type === 'module').map((n) => n.id)
         );
 
-        // Helper to find parent module ID from a node ID
-        function getParentModuleId(nodeId) {
+        // Build class ID lookup for parent assignment (classes are also compound nodes)
+        const classIds = new Set(
+          graph.nodes.filter((n) => n.type === 'class').map((n) => n.id)
+        );
+
+        // Helper to find parent ID from a node ID
+        // For methods/fields: parent is the class
+        // For classes/functions/etc: parent is the module
+        function getParentId(nodeId) {
           if (!nodeId.includes('#')) return null;
+          const symbolPart = nodeId.split('#')[1]; // e.g., "FileReaderAdapter.findFiles"
+
+          // Check if this is a class member (contains '.')
+          if (symbolPart && symbolPart.includes('.')) {
+            // Extract class name: "ClassName.methodName" -> "ClassName"
+            const className = symbolPart.split('.')[0];
+            const moduleId = nodeId.split('#')[0];
+            const classId = `${moduleId}#${className}`;
+            if (classIds.has(classId)) {
+              return classId; // Parent is the class
+            }
+          }
+
+          // Otherwise, parent is the module
           const moduleId = nodeId.split('#')[0];
           return moduleIds.has(moduleId) ? moduleId : null;
         }
 
-        // Add nodes (modules first, then children)
-        // Sort so modules are added before their children
+        // Add nodes (modules first, then classes, then children)
+        // Sort so container nodes are added before their children
         const sortedNodes = [...graph.nodes].sort((a, b) => {
-          if (a.type === 'module' && b.type !== 'module') return -1;
-          if (a.type !== 'module' && b.type === 'module') return 1;
-          return 0;
+          const order = { module: 0, class: 1 };
+          const aOrder = order[a.type] ?? 2;
+          const bOrder = order[b.type] ?? 2;
+          return aOrder - bOrder;
         });
 
         for (const node of sortedNodes) {
-          const parentId = getParentModuleId(node.id);
+          const parentId = getParentId(node.id);
           elements.push({
             data: {
               id: node.id,
@@ -1339,11 +1371,21 @@
           const sourceExists = nodeIdSet.has(edge.source);
           const targetExists = nodeIdSet.has(edge.target);
 
-          // Skip edges from module to its children (redundant with compound nodes)
-          // This includes "export" edges which indicate module defines/exports a symbol
+          // Skip edges from container to its children (redundant with compound nodes)
+          // This includes "export" edges which indicate module/class defines a symbol
+          // 1. Module -> direct children (e.g., module#Symbol)
           if (
             moduleIds.has(edge.source) &&
-            edge.target.startsWith(edge.source + '#')
+            edge.target.startsWith(edge.source + '#') &&
+            !edge.target.slice(edge.source.length + 1).includes('.')
+          ) {
+            skippedDefinedEdges++;
+            continue;
+          }
+          // 2. Class -> methods/fields (e.g., module#Class -> module#Class.method)
+          if (
+            classIds.has(edge.source) &&
+            edge.target.startsWith(edge.source + '.')
           ) {
             skippedDefinedEdges++;
             continue;
@@ -1367,7 +1409,7 @@
           console.log(
             '[chizuts] Hidden',
             skippedDefinedEdges,
-            'module->child defined edges (redundant with compound nodes)'
+            'container->child edges (redundant with compound nodes)'
           );
         }
 
@@ -1553,6 +1595,11 @@
                   // Remove min-width/min-height to allow tight fitting
                   'min-width': 0,
                   'min-height': 0,
+                  // Center icon - scales with container, maintains aspect ratio
+                  'background-image': `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#3498db" font-family="Arial, sans-serif" font-size="60" font-weight="bold" opacity="0.3">M</text></svg>')}`,
+                  'background-fit': 'contain',
+                  'background-width-relative-to': 'inner',
+                  'background-height-relative-to': 'inner',
                 },
               },
               // Collapsed module (no visible children)
@@ -1567,6 +1614,34 @@
                   color: '#fff',
                   'text-valign': 'bottom',
                   'text-margin-y': 5,
+                },
+              },
+              // Class nodes (compound parent nodes for methods/fields)
+              {
+                selector: 'node[type = "class"]',
+                style: {
+                  shape: 'round-rectangle',
+                  'background-color': '#1a1a2e',
+                  'background-opacity': 0.85,
+                  'border-width': 1,
+                  'border-color': NODE_COLORS.class,
+                  'border-opacity': 0.8,
+                  label: 'data(label)',
+                  color: NODE_COLORS.class,
+                  'text-valign': 'top',
+                  'text-halign': 'center',
+                  'text-margin-y': -3,
+                  'font-size': 10,
+                  'text-outline-width': 0,
+                  padding: 8,
+                  'compound-sizing-wrt-labels': 'exclude',
+                  'min-width': 0,
+                  'min-height': 0,
+                  // Center icon - scales with container, maintains aspect ratio
+                  'background-image': `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#9b59b6" font-family="Arial, sans-serif" font-size="60" font-weight="bold" opacity="0.3">C</text></svg>')}`,
+                  'background-fit': 'contain',
+                  'background-width-relative-to': 'inner',
+                  'background-height-relative-to': 'inner',
                 },
               },
               {
@@ -1655,6 +1730,10 @@
                   'text-halign': 'center',
                   'font-size': 9,
                   padding: 8,
+                  'background-image': `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#3498db" font-family="Arial, sans-serif" font-size="60" font-weight="bold" opacity="0.3">M</text></svg>')}`,
+                  'background-fit': 'contain',
+                  'background-width-relative-to': 'inner',
+                  'background-height-relative-to': 'inner',
                 },
               },
               {
@@ -1665,6 +1744,27 @@
                   padding: 5,
                   color: '#fff',
                   'text-valign': 'bottom',
+                },
+              },
+              // Class nodes (compound parent nodes) - fallback
+              {
+                selector: 'node[type = "class"]',
+                style: {
+                  shape: 'round-rectangle',
+                  'background-color': '#1a1a2e',
+                  'background-opacity': 0.85,
+                  'border-width': 1,
+                  'border-color': NODE_COLORS.class,
+                  label: 'data(label)',
+                  color: NODE_COLORS.class,
+                  'text-valign': 'top',
+                  'text-halign': 'center',
+                  'font-size': 10,
+                  padding: 8,
+                  'background-image': `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#9b59b6" font-family="Arial, sans-serif" font-size="60" font-weight="bold" opacity="0.3">C</text></svg>')}`,
+                  'background-fit': 'contain',
+                  'background-width-relative-to': 'inner',
+                  'background-height-relative-to': 'inner',
                 },
               },
               {
@@ -2426,22 +2526,40 @@
                 graph.nodes.filter((n) => n.type === 'module').map((n) => n.id)
               );
 
-              // Helper to find parent module ID from a node ID
-              function getParentModuleId(nodeId) {
+              // Build class ID lookup for parent assignment
+              const classIds = new Set(
+                graph.nodes.filter((n) => n.type === 'class').map((n) => n.id)
+              );
+
+              // Helper to find parent ID from a node ID
+              function getParentId(nodeId) {
                 if (!nodeId.includes('#')) return null;
+                const symbolPart = nodeId.split('#')[1];
+
+                // Check if this is a class member (contains '.')
+                if (symbolPart && symbolPart.includes('.')) {
+                  const className = symbolPart.split('.')[0];
+                  const moduleId = nodeId.split('#')[0];
+                  const classId = `${moduleId}#${className}`;
+                  if (classIds.has(classId)) {
+                    return classId;
+                  }
+                }
+
                 const moduleId = nodeId.split('#')[0];
                 return moduleIds.has(moduleId) ? moduleId : null;
               }
 
-              // Sort so modules are added before their children
+              // Sort so container nodes are added before their children
               const sortedNodes = [...graph.nodes].sort((a, b) => {
-                if (a.type === 'module' && b.type !== 'module') return -1;
-                if (a.type !== 'module' && b.type === 'module') return 1;
-                return 0;
+                const order = { module: 0, class: 1 };
+                const aOrder = order[a.type] ?? 2;
+                const bOrder = order[b.type] ?? 2;
+                return aOrder - bOrder;
               });
 
               for (const node of sortedNodes) {
-                const parentId = getParentModuleId(node.id);
+                const parentId = getParentId(node.id);
                 elements.push({
                   data: {
                     id: node.id,
@@ -2458,10 +2576,19 @@
               }
 
               for (const edge of graph.edges) {
-                // Skip edges from module to its children (redundant with compound nodes)
+                // Skip edges from container to its children (redundant with compound nodes)
+                // 1. Module -> direct children
                 if (
                   moduleIds.has(edge.source) &&
-                  edge.target.startsWith(edge.source + '#')
+                  edge.target.startsWith(edge.source + '#') &&
+                  !edge.target.slice(edge.source.length + 1).includes('.')
+                ) {
+                  continue;
+                }
+                // 2. Class -> methods/fields
+                if (
+                  classIds.has(edge.source) &&
+                  edge.target.startsWith(edge.source + '.')
                 ) {
                   continue;
                 }
