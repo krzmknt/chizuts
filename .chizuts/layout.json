@@ -5,8 +5,8 @@
       "y": 204.67394151860358
     },
     "application/analyze-project/analyze-project.usecase": {
-      "x": 499.8525291528666,
-      "y": 553.2884927362029
+      "x": 504.6025291528666,
+      "y": 573.8402142074544
     },
     "application/analyze-project": {
       "x": 1016.3577148036125,
@@ -21,8 +21,8 @@
       "y": 670.637353934891
     },
     "cli": {
-      "x": 758.8023488013215,
-      "y": 424.20227422822614
+      "x": 794.2893047864138,
+      "y": 421.68702953144975
     },
     "domain": {
       "x": 1030.070165076328,
@@ -85,8 +85,8 @@
       "y": 903.6823072868723
     },
     "infrastructure/file-system/file-reader.adapter": {
-      "x": 484.9469521148567,
-      "y": 394.0097377707793
+      "x": 465.889151878927,
+      "y": 418.0699977437211
     },
     "infrastructure/file-system": {
       "x": 1042.8104393501035,
@@ -105,8 +105,8 @@
       "y": 302.1739435186036
     },
     "infrastructure/typescript-parser/typescript-parser.adapter": {
-      "x": 668.1807926565962,
-      "y": 609.2544478269338
+      "x": 648.5771923573224,
+      "y": 636.9055470294264
     },
     "web/server/index.test": {
       "x": 626.0200894287564,
@@ -116,13 +116,25 @@
       "x": 878.9078268026777,
       "y": 618.6098146441445
     },
+    "application/analyze-project/analyze-project.usecase#AnalyzeProjectUseCase": {
+      "x": 524.8102048881915,
+      "y": 565.417596897608
+    },
+    "cli#CliError": {
+      "x": 873.4590741549824,
+      "y": 447.0875500557939
+    },
+    "infrastructure/file-system/file-reader.adapter#FileReaderAdapter": {
+      "x": 465.889151878927,
+      "y": 418.0699977437211
+    },
+    "infrastructure/typescript-parser/typescript-parser.adapter#TypeScriptParserAdapter": {
+      "x": 648.5771923573224,
+      "y": 636.9055470294264
+    },
     "application/analyze-project/analyze-project.usecase#AnalyzeProjectOptions": {
       "x": 474.8948534175417,
       "y": 591.7628315173009
-    },
-    "application/analyze-project/analyze-project.usecase#AnalyzeProjectUseCase": {
-      "x": 481.6159646400199,
-      "y": 514.8141539551049
     },
     "application/analyze-project/analyze-project.usecase#AnalyzeProjectUseCase.execute": {
       "x": 524.8102048881915,
@@ -136,13 +148,9 @@
       "x": 829.3345391778199,
       "y": 473.0900177092055
     },
-    "cli#CliError": {
-      "x": 873.4590741549824,
-      "y": 447.0875500557939
-    },
     "cli#showHelp": {
-      "x": 769.5599440955338,
-      "y": 350.4367412528241
+      "x": 769.5599440955335,
+      "y": 345.40625185927126
     },
     "cli#showVersion": {
       "x": 768.8964602063838,
@@ -157,8 +165,8 @@
       "y": 497.9678072036282
     },
     "cli#main": {
-      "x": 644.1456234476606,
-      "y": 424.2751436318321
+      "x": 707.6195354178453,
+      "y": 446.2167428314021
     },
     "domain/models/edge#EDGE_TYPES": {
       "x": 352.3568008040256,
@@ -201,8 +209,8 @@
       "y": 1047.1456988492016
     },
     "domain/models/graph#createGraphMetadata": {
-      "x": 845.5900043717163,
-      "y": 978.3272984054913
+      "x": 846.5720332221435,
+      "y": 977.3452695550642
     },
     "domain/models/node#NODE_TYPES": {
       "x": 496.85349139698303,
@@ -252,25 +260,17 @@
       "x": 764.7155876624217,
       "y": 710.8408252427384
     },
-    "infrastructure/file-system/file-reader.adapter#FileReaderAdapter": {
-      "x": 523.708257345812,
-      "y": 388.92781363500035
-    },
     "infrastructure/file-system/file-reader.adapter#FileReaderAdapter.findFiles": {
-      "x": 461.38990060601697,
-      "y": 346.21729076392256
+      "x": 484.4371986646319,
+      "y": 399.5373726517493
     },
     "infrastructure/file-system/file-reader.adapter#FileReaderAdapter.readFile": {
-      "x": 484.3571734461125,
-      "y": 441.802184777636
+      "x": 477.4244241901882,
+      "y": 436.6026228356929
     },
     "infrastructure/file-system/file-reader.adapter#FileReaderAdapter.exists": {
-      "x": 446.1856468839015,
-      "y": 399.01413055998927
-    },
-    "infrastructure/typescript-parser/typescript-parser.adapter#TypeScriptParserAdapter": {
-      "x": 687.7843929558699,
-      "y": 581.6033486244411
+      "x": 447.34110509322215,
+      "y": 412.879629071838
     },
     "infrastructure/typescript-parser/typescript-parser.adapter#TypeScriptParserAdapter.parse": {
       "x": 648.5771923573224,
@@ -297,5 +297,5 @@
       "y": 663.925415180904
     }
   },
-  "savedAt": "2025-12-02T12:18:11.292Z"
+  "savedAt": "2025-12-02T13:15:24.449Z"
 }
