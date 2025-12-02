@@ -240,7 +240,12 @@ export class TypeScriptParserAdapter implements IParser {
     );
 
     // Build import map: symbol name -> source module ID
-    const importMap = this.buildImportMap(sourceFile, filePath, rootDir);
+    const importMap = this.buildImportMap(
+      sourceFile,
+      filePath,
+      rootDir,
+      reexportMap
+    );
 
     // Helper to register a symbol for call edge resolution
     const registerSymbol = (node: ts.Node, nodeId: string): void => {
@@ -473,7 +478,8 @@ export class TypeScriptParserAdapter implements IParser {
   private buildImportMap(
     sourceFile: ts.SourceFile,
     filePath: string,
-    rootDir: string
+    rootDir: string,
+    reexportMap: Map<string, string>
   ): Map<string, string> {
     const importMap = new Map<string, string>();
 
@@ -503,12 +509,17 @@ export class TypeScriptParserAdapter implements IParser {
             for (const element of importClause.namedBindings.elements) {
               const localName = element.name.text;
               const originalName = element.propertyName?.text || localName;
-              importMap.set(localName, `${sourceModuleId}#${originalName}`);
+              const tentativeId = `${sourceModuleId}#${originalName}`;
+              // Resolve through re-exports to find the actual source
+              const resolvedId = reexportMap.get(tentativeId) ?? tentativeId;
+              importMap.set(localName, resolvedId);
             }
           }
           // Default import: import Foo from '...'
           if (importClause.name) {
-            importMap.set(importClause.name.text, `${sourceModuleId}#default`);
+            const tentativeId = `${sourceModuleId}#default`;
+            const resolvedId = reexportMap.get(tentativeId) ?? tentativeId;
+            importMap.set(importClause.name.text, resolvedId);
           }
         }
       }
