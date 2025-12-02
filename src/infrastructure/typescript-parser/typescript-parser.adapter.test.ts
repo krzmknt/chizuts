@@ -363,4 +363,163 @@ describe('TypeScriptParserAdapter', () => {
       expect(componentNodes.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('call edge detection', () => {
+    it('should detect function calls within the same file', () => {
+      const filePath = path.join(tempDir, 'calls.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export function helper(): string {
+          return "help";
+        }
+
+        export function main(): void {
+          const result = helper();
+          console.log(result);
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const callEdges = edges.filter((e) => e.type === 'call');
+      expect(callEdges.length).toBeGreaterThanOrEqual(1);
+
+      // main should call helper
+      const mainCallsHelper = callEdges.some(
+        (e) => e.source.includes('main') && e.target.includes('helper')
+      );
+      expect(mainCallsHelper).toBe(true);
+    });
+
+    it('should detect method calls on class instances', () => {
+      const filePath = path.join(tempDir, 'method-calls.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export class Calculator {
+          add(a: number, b: number): number {
+            return a + b;
+          }
+        }
+
+        export function useCalculator(): number {
+          const calc = new Calculator();
+          return calc.add(1, 2);
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const callEdges = edges.filter((e) => e.type === 'call');
+      expect(callEdges.length).toBeGreaterThanOrEqual(1);
+
+      // useCalculator should call Calculator (new) and add
+      const callsCalculator = callEdges.some(
+        (e) =>
+          e.source.includes('useCalculator') && e.target.includes('Calculator')
+      );
+      expect(callsCalculator).toBe(true);
+    });
+
+    it('should detect calls across files', () => {
+      const utilsPath = path.join(tempDir, 'utils.ts');
+      const mainPath = path.join(tempDir, 'main.ts');
+
+      fs.writeFileSync(
+        utilsPath,
+        `
+        export function formatDate(date: Date): string {
+          return date.toISOString();
+        }
+      `
+      );
+
+      fs.writeFileSync(
+        mainPath,
+        `
+        import { formatDate } from './utils';
+
+        export function printDate(): void {
+          const now = new Date();
+          console.log(formatDate(now));
+        }
+      `
+      );
+
+      const results = adapter.parse([utilsPath, mainPath], {
+        rootDir: tempDir,
+      });
+      const mainEdges = results.find((r) =>
+        r.filePath.includes('main.ts')
+      )?.edges;
+
+      const callEdges = mainEdges?.filter((e) => e.type === 'call') ?? [];
+
+      // printDate should call formatDate from utils
+      const callsFormatDate = callEdges.some(
+        (e) =>
+          e.source.includes('printDate') && e.target.includes('formatDate')
+      );
+      expect(callsFormatDate).toBe(true);
+    });
+
+    it('should detect constructor calls (new expressions)', () => {
+      const filePath = path.join(tempDir, 'new-expr.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export class Service {
+          run(): void {}
+        }
+
+        export function createService(): Service {
+          return new Service();
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const callEdges = edges.filter((e) => e.type === 'call');
+
+      // createService should call Service (constructor)
+      const callsService = callEdges.some(
+        (e) =>
+          e.source.includes('createService') && e.target.includes('Service')
+      );
+      expect(callsService).toBe(true);
+    });
+
+    it('should detect variable references', () => {
+      const filePath = path.join(tempDir, 'var-ref.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export const VERSION = '1.0.0';
+
+        export function showVersion(): void {
+          console.log(VERSION);
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const callEdges = edges.filter((e) => e.type === 'call');
+
+      // showVersion should reference VERSION
+      const referencesVersion = callEdges.some(
+        (e) =>
+          e.source.includes('showVersion') && e.target.includes('VERSION')
+      );
+      expect(referencesVersion).toBe(true);
+    });
+  });
 });
