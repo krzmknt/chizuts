@@ -1256,10 +1256,7 @@ export class TypeScriptParserAdapter implements IParser {
         }
 
         // Check if we're inside a function expression or arrow function
-        if (
-          ts.isFunctionExpression(current) ||
-          ts.isArrowFunction(current)
-        ) {
+        if (ts.isFunctionExpression(current) || ts.isArrowFunction(current)) {
           // Look for variable declaration parent
           const varParent = current.parent;
           if (
@@ -1418,28 +1415,19 @@ export class TypeScriptParserAdapter implements IParser {
         const parent = node.parent;
 
         // Skip if this is a property name in property access (e.g., obj.prop - skip 'prop')
-        if (
-          ts.isPropertyAccessExpression(parent) &&
-          parent.name === node
-        ) {
+        if (ts.isPropertyAccessExpression(parent) && parent.name === node) {
           ts.forEachChild(node, visit);
           return;
         }
 
         // Skip if this is the function being called (e.g., foo() - skip 'foo')
-        if (
-          ts.isCallExpression(parent) &&
-          parent.expression === node
-        ) {
+        if (ts.isCallExpression(parent) && parent.expression === node) {
           ts.forEachChild(node, visit);
           return;
         }
 
         // Skip if this is the class being instantiated (e.g., new Foo() - skip 'Foo')
-        if (
-          ts.isNewExpression(parent) &&
-          parent.expression === node
-        ) {
+        if (ts.isNewExpression(parent) && parent.expression === node) {
           ts.forEachChild(node, visit);
           return;
         }

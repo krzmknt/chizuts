@@ -462,8 +462,7 @@ describe('TypeScriptParserAdapter', () => {
 
       // printDate should call formatDate from utils
       const callsFormatDate = callEdges.some(
-        (e) =>
-          e.source.includes('printDate') && e.target.includes('formatDate')
+        (e) => e.source.includes('printDate') && e.target.includes('formatDate')
       );
       expect(callsFormatDate).toBe(true);
     });
@@ -516,8 +515,7 @@ describe('TypeScriptParserAdapter', () => {
 
       // showVersion should reference VERSION
       const referencesVersion = callEdges.some(
-        (e) =>
-          e.source.includes('showVersion') && e.target.includes('VERSION')
+        (e) => e.source.includes('showVersion') && e.target.includes('VERSION')
       );
       expect(referencesVersion).toBe(true);
     });
