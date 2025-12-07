@@ -311,11 +311,10 @@ async function main(): Promise<void> {
 }
 
 // Only run main when this file is the entry point (not when imported for testing)
-const isMainModule =
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith('/dist/cli/index.js');
+// Check if running via vitest (test environment)
+const isTestEnvironment = process.env['VITEST'] !== undefined;
 
-if (isMainModule) {
+if (!isTestEnvironment) {
   main().catch((error: unknown) => {
     if (error instanceof CliError) {
       console.error(`Error: ${error.message}`);
