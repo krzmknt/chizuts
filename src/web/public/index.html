@@ -1109,14 +1109,60 @@
       function focusNode(nodeId, fromGraph = false) {
         const node = cy.getElementById(nodeId);
         if (node.length > 0) {
-          // Clear previous selection
+          // Clear previous selection and highlights
           cy.elements().unselect();
+          cy.elements().removeClass('neighbor-highlighted');
+          cy.edges().removeClass('edge-highlighted');
+          cy.elements().removeClass('dimmed');
           document.querySelectorAll('.tree-item.selected').forEach((el) => {
             el.classList.remove('selected');
           });
 
           // Select node (no auto-centering/zooming)
           node.select();
+
+          // Track highlighted elements
+          const highlightedNodes = new Set([nodeId]);
+          const highlightedEdges = new Set();
+
+          // Highlight connected edges and neighbor nodes (distance 1)
+          const connectedEdges = getConnectedEdges(node);
+          connectedEdges.forEach((edge) => {
+            // Only highlight visible edges
+            if (!edge.hasClass('hidden')) {
+              edge.addClass('edge-highlighted');
+              highlightedEdges.add(edge.id());
+              // Highlight the neighbor node on the other end
+              const sourceId = edge.data('source');
+              const targetId = edge.data('target');
+              const neighborId = sourceId === nodeId ? targetId : sourceId;
+              const neighborNode = cy.getElementById(neighborId);
+              if (neighborNode.length > 0 && !neighborNode.hasClass('hidden')) {
+                neighborNode.addClass('neighbor-highlighted');
+                highlightedNodes.add(neighborId);
+              }
+            }
+          });
+
+          // Also include parent nodes (ancestors) of highlighted nodes
+          highlightedNodes.forEach((nId) => {
+            const n = cy.getElementById(nId);
+            n.ancestors().forEach((ancestor) => {
+              highlightedNodes.add(ancestor.id());
+            });
+          });
+
+          // Dim non-highlighted elements
+          cy.nodes().forEach((n) => {
+            if (!highlightedNodes.has(n.id()) && !n.hasClass('hidden')) {
+              n.addClass('dimmed');
+            }
+          });
+          cy.edges().forEach((e) => {
+            if (!highlightedEdges.has(e.id()) && !e.hasClass('hidden')) {
+              e.addClass('dimmed');
+            }
+          });
 
           // Highlight in tree and expand parents
           const treeItem = document.querySelector(`[data-node-id="${nodeId}"]`);
@@ -1676,6 +1722,29 @@
                   'border-style': 'double',
                 },
               },
+              {
+                selector: '.neighbor-highlighted',
+                style: {},
+              },
+              {
+                selector: 'edge.edge-highlighted',
+                style: {
+                  width: 3,
+                  opacity: 1,
+                },
+              },
+              {
+                selector: 'node.dimmed',
+                style: {
+                  opacity: 0.4,
+                },
+              },
+              {
+                selector: 'edge.dimmed',
+                style: {
+                  opacity: 0.25,
+                },
+              },
             ],
             layout: layoutOptions,
             wheelSensitivity: 0.3,
@@ -1772,6 +1841,37 @@
                 },
               },
               { selector: '.hidden', style: { display: 'none' } },
+              {
+                selector: '.highlighted',
+                style: {
+                  'border-width': 4,
+                  'border-color': '#22d3ee',
+                  'border-style': 'double',
+                },
+              },
+              {
+                selector: '.neighbor-highlighted',
+                style: {},
+              },
+              {
+                selector: 'edge.edge-highlighted',
+                style: {
+                  width: 3,
+                  opacity: 1,
+                },
+              },
+              {
+                selector: 'node.dimmed',
+                style: {
+                  opacity: 0.4,
+                },
+              },
+              {
+                selector: 'edge.dimmed',
+                style: {
+                  opacity: 0.25,
+                },
+              },
             ],
             layout: layoutOptions,
             wheelSensitivity: 0.3,
@@ -1782,6 +1882,15 @@
         cy.on('tap', 'node', (evt) => {
           const node = evt.target;
           focusNode(node.id(), true);
+        });
+
+        // Clear highlights when clicking on background
+        cy.on('tap', (evt) => {
+          if (evt.target === cy) {
+            cy.elements().removeClass('neighbor-highlighted');
+            cy.edges().removeClass('edge-highlighted');
+            cy.elements().removeClass('dimmed');
+          }
         });
 
         // Double-click on module to toggle expand/collapse
@@ -2204,9 +2313,11 @@
       // so we manually filter edges by source/target ID
       function getConnectedEdges(node) {
         const nodeId = node.id();
-        return cy.edges().filter(
-          (e) => e.data('source') === nodeId || e.data('target') === nodeId
-        );
+        return cy
+          .edges()
+          .filter(
+            (e) => e.data('source') === nodeId || e.data('target') === nodeId
+          );
       }
 
       // Helper to check if a node should be hidden by pattern filter
@@ -2267,7 +2378,9 @@
           if (e.hasClass('hidden')) return false;
           const sourceNode = cy.getElementById(e.data('source'));
           const targetNode = cy.getElementById(e.data('target'));
-          return !sourceNode.hasClass('hidden') && !targetNode.hasClass('hidden');
+          return (
+            !sourceNode.hasClass('hidden') && !targetNode.hasClass('hidden')
+          );
         });
         return visibleEdges.length === 0;
       }
