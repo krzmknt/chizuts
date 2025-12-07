@@ -616,14 +616,14 @@
           &times;
         </button>
       </div>
-      <h2>Node Details</h2>
+      <h2>Symbol Details</h2>
       <div id="node-info">
-        <p style="color: #666">Click a node to see details</p>
+        <p style="color: #666">Click a symbol to see details</p>
       </div>
 
       <div class="legend-container">
         <div id="legend">
-          <h2>Nodes</h2>
+          <h2>Symbols</h2>
           <div class="legend-item clickable" data-type="module">
             <div class="legend-color" style="background: #3498db"></div>
             Module
@@ -667,14 +667,10 @@
         </div>
 
         <div id="edge-legend">
-          <h2>Edges</h2>
+          <h2>Relations</h2>
           <div class="legend-item clickable" data-edge-type="import">
             <div class="legend-line" style="background: #3498db"></div>
             import
-          </div>
-          <div class="legend-item clickable" data-edge-type="defines">
-            <div class="legend-line" style="background: #7f8c8d"></div>
-            defines
           </div>
           <div class="legend-item clickable" data-edge-type="call">
             <div class="legend-line" style="background: #e74c3c"></div>
@@ -719,7 +715,7 @@
             id="hide-orphans"
             style="width: 16px; height: 16px"
           />
-          Hide orphan nodes (no connections)
+          Hide orphan symbols (no connections)
         </label>
         <div
           id="orphan-stats"
@@ -1119,13 +1115,8 @@
             el.classList.remove('selected');
           });
 
-          // Select and focus
+          // Select node (no auto-centering/zooming)
           node.select();
-          cy.animate({
-            center: { eles: node },
-            zoom: 1.5,
-            duration: 300,
-          });
 
           // Highlight in tree and expand parents
           const treeItem = document.querySelector(`[data-node-id="${nodeId}"]`);
@@ -1292,7 +1283,7 @@
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('stats').textContent =
-          `${graph.nodes.length} nodes, ${graph.edges.length} edges, ${graph.metadata.fileCount} files`;
+          `${graph.nodes.length} symbols, ${graph.edges.length} relations, ${graph.metadata.fileCount} files`;
 
         // Build and render file tree
         const tree = buildFileTree(graph.nodes);
@@ -1835,7 +1826,7 @@
           const visibleNodes = cy.nodes().filter((n) => !n.hasClass('hidden'));
           const visibleEdges = cy.edges().filter((e) => !e.hasClass('hidden'));
           document.getElementById('filter-stats').textContent =
-            `Showing ${visibleNodes.length} nodes, ${visibleEdges.length} edges`;
+            `Showing ${visibleNodes.length} symbols, ${visibleEdges.length} relations`;
         }
 
         // Setup controls, search, and pattern filter
@@ -2243,7 +2234,7 @@
               .filter((e) => !e.hasClass('hidden'));
             return visibleEdges.length === 0;
           }).length;
-          orphanStats.textContent = `${orphans} orphan nodes out of ${total} total`;
+          orphanStats.textContent = `${orphans} orphan symbols out of ${total} total`;
         }
       }
 
@@ -2364,9 +2355,9 @@
 
           // Update filter stats
           if (excludePatterns.length > 0 || includePatterns.length > 0) {
-            filterStats.textContent = `Showing ${shownCount} nodes, ${hiddenCount} hidden`;
+            filterStats.textContent = `Showing ${shownCount} symbols, ${hiddenCount} hidden`;
           } else {
-            filterStats.textContent = 'All nodes visible';
+            filterStats.textContent = 'All symbols visible';
           }
           console.log('[chizuts] Filter applied:', { shownCount, hiddenCount });
         };
@@ -2443,7 +2434,7 @@
         const updateOrphanStats = () => {
           const total = cy.nodes().length;
           const orphans = countOrphans();
-          orphanStats.textContent = `${orphans} orphan nodes out of ${total} total`;
+          orphanStats.textContent = `${orphans} orphan symbols out of ${total} total`;
         };
 
         // Restore hide orphans checkbox state from localStorage
@@ -2516,7 +2507,7 @@
             .then((graph) => {
               // Update stats
               document.getElementById('stats').textContent =
-                `${graph.nodes.length} nodes, ${graph.edges.length} edges, ${graph.metadata.fileCount} files`;
+                `${graph.nodes.length} symbols, ${graph.edges.length} relations, ${graph.metadata.fileCount} files`;
 
               // Rebuild elements with parent assignment for compound nodes
               const elements = [];

@@ -520,4 +520,89 @@ describe('TypeScriptParserAdapter', () => {
       expect(referencesVersion).toBe(true);
     });
   });
+
+  describe('type reference detection', () => {
+    it('should detect type references in function parameters', () => {
+      const filePath = path.join(tempDir, 'type-ref.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export interface User {
+          id: number;
+          name: string;
+        }
+
+        export function greet(user: User): string {
+          return "Hello, " + user.name;
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const referenceEdges = edges.filter((e) => e.type === 'reference');
+
+      // greet should reference User type
+      const greetReferencesUser = referenceEdges.some(
+        (e) => e.source.includes('greet') && e.target.includes('User')
+      );
+      expect(greetReferencesUser).toBe(true);
+    });
+
+    it('should detect type references in return types', () => {
+      const filePath = path.join(tempDir, 'return-type.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export interface Result {
+          success: boolean;
+        }
+
+        export function doSomething(): Result {
+          return { success: true };
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const referenceEdges = edges.filter((e) => e.type === 'reference');
+
+      // doSomething should reference Result type
+      const referencesResult = referenceEdges.some(
+        (e) => e.source.includes('doSomething') && e.target.includes('Result')
+      );
+      expect(referencesResult).toBe(true);
+    });
+
+    it('should detect type references in variable declarations', () => {
+      const filePath = path.join(tempDir, 'var-type.ts');
+      fs.writeFileSync(
+        filePath,
+        `
+        export type Config = {
+          debug: boolean;
+        };
+
+        export function setup(): void {
+          const config: Config = { debug: true };
+          console.log(config);
+        }
+      `
+      );
+
+      const results = adapter.parse([filePath], { rootDir: tempDir });
+      const edges = results[0]?.edges ?? [];
+
+      const referenceEdges = edges.filter((e) => e.type === 'reference');
+
+      // setup should reference Config type
+      const referencesConfig = referenceEdges.some(
+        (e) => e.source.includes('setup') && e.target.includes('Config')
+      );
+      expect(referencesConfig).toBe(true);
+    });
+  });
 });

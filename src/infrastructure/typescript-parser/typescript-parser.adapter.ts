@@ -260,7 +260,13 @@ export class TypeScriptParserAdapter implements IParser {
                 ? node.name
                 : ts.isPropertyDeclaration(node) && node.name
                   ? node.name
-                  : node
+                  : ts.isInterfaceDeclaration(node) && node.name
+                    ? node.name
+                    : ts.isTypeAliasDeclaration(node) && node.name
+                      ? node.name
+                      : ts.isEnumDeclaration(node) && node.name
+                        ? node.name
+                        : node
       );
       if (symbol) {
         symbolToNodeId.set(symbol, nodeId);
@@ -1333,7 +1339,7 @@ export class TypeScriptParserAdapter implements IParser {
 
     // Add a call edge if valid
     const addCallEdge = (sourceId: string, targetId: string): void => {
-      const edgeKey = `${sourceId}->${targetId}`;
+      const edgeKey = `call:${sourceId}->${targetId}`;
       if (!addedEdges.has(edgeKey) && sourceId !== targetId) {
         addedEdges.add(edgeKey);
         edges.push(
@@ -1341,6 +1347,21 @@ export class TypeScriptParserAdapter implements IParser {
             source: sourceId,
             target: targetId,
             type: 'call',
+          })
+        );
+      }
+    };
+
+    // Add a reference edge for type dependencies
+    const addReferenceEdge = (sourceId: string, targetId: string): void => {
+      const edgeKey = `reference:${sourceId}->${targetId}`;
+      if (!addedEdges.has(edgeKey) && sourceId !== targetId) {
+        addedEdges.add(edgeKey);
+        edges.push(
+          createEdge({
+            source: sourceId,
+            target: targetId,
+            type: 'reference',
           })
         );
       }
@@ -1474,6 +1495,25 @@ export class TypeScriptParserAdapter implements IParser {
           const targetId = resolveSymbolToNodeId(symbol);
           if (targetId) {
             addCallEdge(sourceId, targetId);
+          }
+        }
+      }
+
+      // Handle TypeReference: type annotations like User, Config, etc.
+      // e.g., function foo(user: User): Result { const config: Config = ... }
+      if (ts.isTypeReferenceNode(node)) {
+        const sourceId = findEnclosingSymbolId(node);
+        if (sourceId) {
+          // Get the type name (handles qualified names like Namespace.Type)
+          const typeName = node.typeName;
+          const symbol = typeChecker.getSymbolAtLocation(
+            ts.isQualifiedName(typeName) ? typeName.right : typeName
+          );
+          if (symbol) {
+            const targetId = resolveSymbolToNodeId(symbol);
+            if (targetId) {
+              addReferenceEdge(sourceId, targetId);
+            }
           }
         }
       }
