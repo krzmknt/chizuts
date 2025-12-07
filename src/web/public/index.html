@@ -1795,7 +1795,7 @@
             moduleNode.children().forEach((child) => {
               child.removeClass('hidden');
               // Also show edges connected to this child
-              child.connectedEdges().forEach((edge) => {
+              getConnectedEdges(child).forEach((edge) => {
                 const sourceNode = cy.getElementById(edge.data('source'));
                 const targetNode = cy.getElementById(edge.data('target'));
                 // Only show edge if both ends are visible
@@ -1813,7 +1813,7 @@
             moduleNode.children().forEach((child) => {
               child.addClass('hidden');
               // Hide edges connected to this child
-              child.connectedEdges().addClass('hidden');
+              getConnectedEdges(child).addClass('hidden');
             });
           }
 
@@ -1920,6 +1920,9 @@
             cy.nodes().unlock();
           }
         }
+
+        // Fit to screen after initial layout
+        cy.fit(50);
       }
 
       function showNodeInfo(data) {
@@ -2196,20 +2199,86 @@
           });
       }
 
-      // Global function to update orphan visibility based on current visible edges
+      // Helper function to get connected edges for a node
+      // Note: cy.connectedEdges() doesn't work correctly for compound node children,
+      // so we manually filter edges by source/target ID
+      function getConnectedEdges(node) {
+        const nodeId = node.id();
+        return cy.edges().filter(
+          (e) => e.data('source') === nodeId || e.data('target') === nodeId
+        );
+      }
+
+      // Helper to check if a node should be hidden by pattern filter
+      function isNodeHiddenByPatternFilter(node) {
+        const excludeInput = document.getElementById('exclude-patterns');
+        const includeInput = document.getElementById('include-patterns');
+        if (!excludeInput || !includeInput) return false;
+
+        const excludePatterns = excludeInput.value
+          .split('\n')
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+        const includePatterns = includeInput.value
+          .split('\n')
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+
+        if (excludePatterns.length === 0 && includePatterns.length === 0) {
+          return false;
+        }
+
+        const filePath = node.data('filePath') || node.data('label') || '';
+        const label = node.data('label') || '';
+        const pathToCheck = filePath || label;
+
+        // If include patterns exist, only show matching nodes
+        if (includePatterns.length > 0) {
+          if (!matchesPatterns(pathToCheck, includePatterns)) {
+            return true;
+          }
+        }
+
+        // If exclude patterns exist, hide matching nodes
+        if (excludePatterns.length > 0) {
+          if (matchesPatterns(pathToCheck, excludePatterns)) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      // Helper to check if a node is orphan (no edges and no visible children)
+      function isNodeOrphan(node) {
+        // Compound nodes (modules/classes with children) are not orphans
+        const visibleChildren = node
+          .children()
+          .filter((c) => !c.hasClass('hidden'));
+        if (visibleChildren.length > 0) {
+          return false;
+        }
+
+        // Check for visible connected edges
+        // An edge is visible if:
+        // 1. The edge itself is not hidden
+        // 2. Both source and target nodes are not hidden
+        const visibleEdges = getConnectedEdges(node).filter((e) => {
+          if (e.hasClass('hidden')) return false;
+          const sourceNode = cy.getElementById(e.data('source'));
+          const targetNode = cy.getElementById(e.data('target'));
+          return !sourceNode.hasClass('hidden') && !targetNode.hasClass('hidden');
+        });
+        return visibleEdges.length === 0;
+      }
+
       function updateOrphanVisibility() {
         const hideOrphansCheckbox = document.getElementById('hide-orphans');
         if (!hideOrphansCheckbox || !hideOrphansCheckbox.checked) return;
 
         // Re-apply orphan hiding based on currently visible edges
         cy.nodes().forEach((node) => {
-          // Count only visible connected edges
-          const visibleEdges = node
-            .connectedEdges()
-            .filter((e) => !e.hasClass('hidden'));
-          const isOrphan = visibleEdges.length === 0;
-
-          // Also check if node type is hidden
+          // Check if node type is hidden
           const nodeType = node.data('type');
           const nodeTypeHidden = document
             .querySelector(`#legend .legend-item[data-type="${nodeType}"]`)
@@ -2217,7 +2286,18 @@
 
           if (nodeTypeHidden) {
             node.addClass('hidden');
-          } else if (isOrphan) {
+            return;
+          }
+
+          // Check if node is hidden by pattern filter
+          if (isNodeHiddenByPatternFilter(node)) {
+            node.addClass('hidden');
+            return;
+          }
+
+          const isOrphan = isNodeOrphan(node);
+
+          if (isOrphan) {
             node.addClass('hidden');
           } else {
             node.removeClass('hidden');
@@ -2228,12 +2308,7 @@
         const orphanStats = document.getElementById('orphan-stats');
         if (orphanStats) {
           const total = cy.nodes().length;
-          const orphans = cy.nodes().filter((n) => {
-            const visibleEdges = n
-              .connectedEdges()
-              .filter((e) => !e.hasClass('hidden'));
-            return visibleEdges.length === 0;
-          }).length;
+          const orphans = cy.nodes().filter((n) => isNodeOrphan(n)).length;
           orphanStats.textContent = `${orphans} orphan symbols out of ${total} total`;
         }
       }
@@ -2417,18 +2492,9 @@
         const hideOrphansCheckbox = document.getElementById('hide-orphans');
         const orphanStats = document.getElementById('orphan-stats');
 
-        // Count orphan nodes based on visible edges only
+        // Count orphan nodes using the shared isNodeOrphan helper
         const countOrphans = () => {
-          let orphanCount = 0;
-          cy.nodes().forEach((node) => {
-            const visibleEdges = node
-              .connectedEdges()
-              .filter((e) => !e.hasClass('hidden'));
-            if (visibleEdges.length === 0) {
-              orphanCount++;
-            }
-          });
-          return orphanCount;
+          return cy.nodes().filter((node) => isNodeOrphan(node)).length;
         };
 
         const updateOrphanStats = () => {
@@ -2444,10 +2510,7 @@
         // Apply saved hide orphans state
         if (savedHideOrphans) {
           cy.nodes().forEach((node) => {
-            const visibleEdges = node
-              .connectedEdges()
-              .filter((e) => !e.hasClass('hidden'));
-            if (visibleEdges.length === 0) {
+            if (isNodeOrphan(node)) {
               node.addClass('hidden');
             }
           });
@@ -2472,11 +2535,13 @@
               return;
             }
 
-            // Count only visible connected edges
-            const visibleEdges = node
-              .connectedEdges()
-              .filter((e) => !e.hasClass('hidden'));
-            const isOrphan = visibleEdges.length === 0;
+            // Check if node is hidden by pattern filter
+            if (isNodeHiddenByPatternFilter(node)) {
+              // Keep hidden if pattern filter hides it
+              return;
+            }
+
+            const isOrphan = isNodeOrphan(node);
 
             if (isOrphan) {
               if (hideOrphans) {
