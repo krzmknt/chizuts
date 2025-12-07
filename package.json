@@ -1,6 +1,6 @@
 {
   "name": "chizuts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A TypeScript codebase analyzer that visualizes dependencies between modules, functions, variables, and components as a graph",
   "type": "module",
   "main": "dist/domain/index.js",
